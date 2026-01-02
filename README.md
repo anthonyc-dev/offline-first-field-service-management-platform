@@ -22,8 +22,8 @@ A robust platform designed to ensure seamless service access and data management
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/offline-first-platform.git
-   cd offline-first-platform
+   git clone https://github.com/anthonyc-dev/offline-first-field-service-management-platform
+   cd offline-first-field-service-management-platform
    ```
 
 2. **Install dependencies**
@@ -67,9 +67,3 @@ A robust platform designed to ensure seamless service access and data management
 
 MIT License © 2026 Your Name
 
-```
-
-This is short, clear, and communicates the **offline-first philosophy**, tech stack, and usage instructions without being overwhelming.  
-
-If you want, I can make an **even snappier version under 150 words** that’s perfect for GitHub first glance. Do you want me to do that?
-```
