@@ -1,11 +1,27 @@
-FROM node:22-alpine
+# -------- Build Stage --------#
+    FROM node:20-alpine AS builder
 
-WORKDIR /app
+    WORKDIR /app
+    
+    COPY package*.json ./
+    RUN npm ci
+    
+    COPY . .
+    RUN npm run build
 
-COPY package.json .
+ # -------- Runtime Stage --------#
+    FROM node:20-alpine
+    
+    WORKDIR /app
+    
+    COPY --from=builder /app/dist ./dist
+    COPY package*.json ./
+    RUN npm ci --omit=dev
+    
+    EXPOSE 3000
+    
+    CMD ["node", "dist/server.js"]
 
-RUN npm install
 
-COPY . .
-
-CMD ["npm", "start"]
+# docker-compose -f docker-compose.prod.yml up --build -d
+    
