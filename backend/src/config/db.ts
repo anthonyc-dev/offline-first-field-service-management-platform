@@ -1,27 +1,15 @@
-import { config } from './env.js';
+import { PrismaClient } from "../generated/prisma/client.js";
 
-export async function connectDatabase(): Promise<void> {
-  try {
-    // TODO: Implement database connection
-    // Example for MongoDB:
-    // await mongoose.connect(config.dbUrl || '');
-    // Example for PostgreSQL:
-    // const pool = new Pool({ connectionString: config.dbUrl });
-    
-    console.log('✅ Database connected');
-  } catch (error) {
-    console.error('❌ Database connection error:', error);
-    throw error;
-  }
+const globalForPrisma = global as unknown as {
+  prisma: PrismaClient | undefined;
+};
+
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ["query", "error", "warn"],
+  } as any);
+
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = prisma;
 }
-
-export async function disconnectDatabase(): Promise<void> {
-  try {
-    // TODO: Implement database disconnection
-    console.log('✅ Database disconnected');
-  } catch (error) {
-    console.error('❌ Database disconnection error:', error);
-    throw error;
-  }
-}
-

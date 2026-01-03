@@ -1,12 +1,8 @@
 import { createApp } from "./app.js";
 import { config } from "./config/env.js";
-import { connectDatabase } from "./config/db.js";
 
 async function startServer() {
   try {
-    // Connect to database
-    await connectDatabase();
-
     // Create Express app
     const app = createApp();
 

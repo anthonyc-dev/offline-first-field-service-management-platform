@@ -7,6 +7,7 @@ interface Config {
   port: number;
   dbUrl?: string | undefined;
   jwtSecret?: string | undefined;
+  jwtRefresh?: string | undefined;
   jwtExpiresIn?: string | undefined;
 }
 
@@ -24,4 +25,5 @@ export const config: Config = {
   dbUrl: process.env.DATABASE_URL,
   jwtSecret: process.env.JWT_SECRET,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  jwtRefresh: process.env.JWT_REFRESH,
 };
