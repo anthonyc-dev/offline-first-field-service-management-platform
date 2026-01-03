@@ -25,3 +25,4 @@ CMD ["npm", "run", "dev"]
 
 #---------Docker prisma migrate--------------------
 # docker-compose exec api npx prisma migrate dev --name add_user_model
+#npm run prisma:migrate -- --name add_user_model

@@ -10,9 +10,22 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose up -d --build",
+    "docker:restart": "docker-compose down && docker-compose up -d --build",
+    "dev:up": "docker-compose -f docker-compose.dev.yml up -d --build",
+    "dev:migrate": "docker-compose exec api npx prisma migrate dev",
+    "dev:studio": "docker-compose exec api npx prisma studio --browser none",
+    "dev:generate": "docker-compose exec api npx prisma generate",
+    "prod:up": "docker-compose -f docker-compose.prod.yml up -d --build",
+    "prod:migrate": "docker-compose exec api npx prisma migrate deploy",
+    "prisma:migrate": "docker-compose exec api npx prisma migrate dev",
+    "prisma:generate": "docker-compose exec api npx prisma generate",
+    "prisma:studio": "docker-compose exec api npx prisma studio --browser none"
   },
   "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
     "@prisma/client": "^7.2.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
