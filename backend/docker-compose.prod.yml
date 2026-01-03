@@ -9,8 +9,8 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: production
-      DATABASE_URL: postgres://postgres:strongpassword@db:5432/proddb
+      NODE_ENV: ${NODE_ENV}
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       - db
     restart: always
@@ -19,9 +19,9 @@ services:
     image: postgres:16-alpine
     container_name: postgres_prod
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: strongpassword
-      POSTGRES_DB: proddb
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - pg_prod_data:/var/lib/postgresql/data
     restart: always
