@@ -2,6 +2,8 @@ version: "3.9"
 
 services:
   api:
+    env_file:
+      - .env
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -12,8 +14,8 @@ services:
       - .:/app
       - /app/node_modules
     environment:
-      NODE_ENV: ${NODE_ENV}
-      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/offline_first_service
     command: npm run dev
     depends_on:
       - db
@@ -22,11 +24,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres_dev
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: offline_first_service
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "5433:5432"
     volumes:
       - pg_dev_data:/var/lib/postgresql/data
     mem_limit: 512m
