@@ -1,4 +1,4 @@
-# Backend file structure:
+# Feature/Module-Based Organization Backend file structure:
 
 ```
 backend/
