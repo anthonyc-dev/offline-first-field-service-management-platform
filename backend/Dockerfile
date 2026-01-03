@@ -7,6 +7,10 @@
     RUN npm ci
     
     COPY . .
+
+    # # Generate Prisma client for build
+    # RUN npx prisma generate
+
     RUN npm run build
 
  # -------- Runtime Stage --------#
@@ -17,6 +21,10 @@
     COPY --from=builder /app/dist ./dist
     COPY package*.json ./
     RUN npm ci --omit=dev
+
+    # # Copy Prisma client and schema if needed at runtime
+    # COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+    # COPY --from=builder /app/prisma ./prisma
     
     EXPOSE 3000
     
@@ -24,4 +32,15 @@
 
 
 # docker-compose -f docker-compose.yml up --build -d
+
+#----------Prisma Running Migrations-----------------
+
+# In dev:
+
+# docker-compose exec api npx prisma migrate dev --name init
+
+
+# In prod:
+
+# docker-compose exec api npx prisma migrate deploy
     
