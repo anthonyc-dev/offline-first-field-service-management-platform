@@ -6,9 +6,9 @@ interface Config {
   nodeEnv: string;
   port: number;
   dbUrl?: string | undefined;
-  jwtSecret?: string | undefined;
+  jwtSecret: string;
   jwtRefresh?: string | undefined;
-  jwtExpiresIn?: string | undefined;
+  jwtExpiresIn: string;
 }
 
 function getEnvVar(key: string, defaultValue?: string): string {
@@ -20,10 +20,10 @@ function getEnvVar(key: string, defaultValue?: string): string {
 }
 
 export const config: Config = {
-  nodeEnv: getEnvVar("NODE_ENV", "development"),
-  port: parseInt(getEnvVar("PORT", "3000"), 10),
+  nodeEnv: getEnvVar("NODE_ENV"),
+  port: parseInt(getEnvVar("PORT")),
   dbUrl: process.env.DATABASE_URL,
-  jwtSecret: process.env.JWT_SECRET,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || "7d",
+  jwtSecret: getEnvVar("JWT_SECRET"),
+  jwtExpiresIn: getEnvVar("JWT_EXPIRES_IN", "7d"),
   jwtRefresh: process.env.JWT_REFRESH,
 };

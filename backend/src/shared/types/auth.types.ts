@@ -20,19 +20,15 @@ export interface RegisterInput {
 }
 
 // Auth response type
+interface PublicUser {
+  id: string;
+  email: string;
+  fullName: string;
+  role: string;
+}
+
 export interface AuthResponse {
-  token: string;
-  user: Omit<
-    {
-      id: string;
-      fullName: string;
-      email: string;
-      password: string;
-      role: string;
-      phoneNumber: string;
-      createdAt: Date;
-      updatedAt: Date;
-    },
-    "password"
-  >;
+  user: PublicUser;
+  accessToken: string;
+  refreshToken: string;
 }
