@@ -4,14 +4,24 @@ import { authentication } from "../../shared/middleware/auth.middleware.js";
 
 const router = Router();
 
-router.post("/login", (req, res) => authController.login(req, res));
-router.post("/register", (req, res) => authController.register(req, res));
-router.post("/refresh-token", (req, res) =>
-  authController.refreshToken(req, res)
+// Public routes
+router.post("/login", authController.login.bind(authController));
+router.post("/register", authController.register.bind(authController));
+router.post("/refresh-token", authController.refreshToken.bind(authController));
+
+// Protected routes
+router.post(
+  "/profile",
+  authentication,
+  authController.profile.bind(authController)
 );
-router.post("/logout", (req, res) => authController.logout(req, res));
-router.post("/profile", authentication, (req, res) =>
-  authController.profile(req, res)
+router.post(
+  "/logout-all",
+  authentication,
+  authController.logoutAll.bind(authController)
 );
+
+// Logout
+router.post("/logout", authController.logout.bind(authController));
 
 export default router;

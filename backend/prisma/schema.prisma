@@ -33,11 +33,16 @@ model RefreshToken {
   id            String   @id @default(uuid())
   userId        String
   tokenHash     String   @unique
+  deviceId      String
+  userAgent     String
+  ipAddress     String
   expiresAt     DateTime
   revokedAt     DateTime?
   replacedById  String?
   createdAt     DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
-}
 
+  @@index([userId])
+  @@index([deviceId])
+}

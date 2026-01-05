@@ -1,6 +1,7 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
+import { getDeviceId } from "../../shared/utils/device.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -39,7 +40,16 @@ export class AuthController {
   async login(req: Request, res: Response): Promise<void> {
     try {
       const { email, password } = req.body;
-      const result = await authService.login({ email, password });
+
+      const { deviceId, userAgent, ipAddress } = req.context;
+
+      const result = await authService.login({
+        email,
+        password,
+        deviceId,
+        userAgent,
+        ipAddress,
+      });
 
       // Set httpOnly cookies
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
@@ -47,13 +57,22 @@ export class AuthController {
       // Return user data only (tokens are in cookies)
       res.status(200).json({ user: result.user });
     } catch (error) {
+      console.error(error);
       res.status(401).json({ error: "Invalid credentials" });
     }
   }
 
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const userData = req.body;
+      const { user } = req.body;
+      const { deviceId, userAgent, ipAddress } = req.context;
+
+      const userData = {
+        ...user,
+        deviceId,
+        userAgent,
+        ipAddress,
+      };
       const result = await authService.register(userData);
 
       // Set httpOnly cookies
@@ -62,6 +81,7 @@ export class AuthController {
       // Return user data only (tokens are in cookies)
       res.status(201).json({ user: result.user });
     } catch (error) {
+      console.error(error);
       res.status(400).json({ error: "Registration failed" });
     }
   }
@@ -74,13 +94,16 @@ export class AuthController {
         return;
       }
 
-      const result = await authService.refreshToken(refreshToken);
+      const { deviceId } = req.context;
+
+      const result = await authService.refreshToken(refreshToken, deviceId);
 
       // Set new httpOnly cookies
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
       res.status(200).json({ message: "Tokens refreshed successfully" });
     } catch (error) {
+      console.error(error);
       res.status(401).json({ error: "Invalid refresh token" });
     }
   }
@@ -90,6 +113,7 @@ export class AuthController {
       const profile = authService.getProfileFromRequest(req);
       res.status(200).json(profile);
     } catch (error) {
+      console.error(error);
       res.status(401).json({ error: "Unauthorized" });
     }
   }
@@ -106,9 +130,33 @@ export class AuthController {
 
       res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
+      console.error(error);
       // Clear cookies even if logout fails
       this.clearAuthCookies(res);
       res.status(400).json({ error: "Logout failed" });
+    }
+  }
+
+  async logoutAll(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.sub;
+      if (!userId) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+
+      await authService.logoutAll(userId);
+
+      // Clear cookies
+      this.clearAuthCookies(res);
+
+      res
+        .status(200)
+        .json({ message: "Logged out from all devices successfully" });
+    } catch (error) {
+      console.error(error);
+      this.clearAuthCookies(res);
+      res.status(400).json({ error: "Logout all devices failed" });
     }
   }
 }

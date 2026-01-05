@@ -8,6 +8,9 @@ export interface JwtPayload {
 export interface LoginInput {
   email: string;
   password: string;
+  deviceId: string;
+  userAgent: string;
+  ipAddress: string;
 }
 
 // Register input
@@ -17,6 +20,9 @@ export interface RegisterInput {
   password: string;
   role?: string;
   phoneNumber: string;
+  deviceId?: string;
+  userAgent?: string;
+  ipAddress?: string;
 }
 
 // Auth response type
@@ -31,4 +37,11 @@ export interface AuthResponse {
   user: PublicUser;
   accessToken: string;
   refreshToken: string;
+}
+
+//Request Context type
+export interface RequestContext {
+  ipAddress: string;
+  userAgent: string;
+  deviceId: string;
 }

@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./modules/auth/auth.routes.js";
 import syncRoutes from "./modules/sync/sync.routes.js";
 import taskRoutes from "./modules/tasks/task.routes.js";
+import { requestContext } from "./shared/middleware/request-context.middleware.js";
 
 export function createApp(): Express {
   const app = express();
@@ -17,6 +18,10 @@ export function createApp(): Express {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
+  app.set("trust proxy", true);
+
+  // 🔑 GLOBAL CONTEXT MIDDLEWARE
+  app.use(requestContext);
 
   // Routes
   app.use("/api/auth", authRoutes);
