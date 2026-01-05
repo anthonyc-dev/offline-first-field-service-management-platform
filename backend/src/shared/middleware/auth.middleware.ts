@@ -18,7 +18,11 @@ export function authentication(
     if (typeof decoded === "string") {
       return res.sendStatus(401);
     }
-    req.user = decoded as { sub: string; role: string } & jwt.JwtPayload;
+    req.user = decoded as {
+      sub: string;
+      role: string;
+      exp: Date;
+    } & jwt.JwtPayload;
     next();
   } catch {
     res.sendStatus(401);

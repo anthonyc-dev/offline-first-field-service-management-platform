@@ -1,3 +1,25 @@
+# Docker Command
+
+View Docker image, volume and builder
+
+```bash
+docker system df
+```
+
+Clean unuse Docker image, volume and builder
+
+```bash
+docker network prune
+
+docker volume prune
+
+docker image prune -a
+
+docker builder prune -a
+```
+
+---
+
 # Feature/Module-Based Organization Backend file structure:
 
 ```

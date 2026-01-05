@@ -1,10 +1,7 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { prisma } from "../../config/db.js";
-import { config } from "../../config/env.js";
 import type {
   AuthResponse,
-  JwtPayload,
   LoginInput,
   RegisterInput,
 } from "../../shared/types/auth.types.js";
@@ -94,26 +91,6 @@ export class AuthService {
   }
 
   // ---------------- REFRESH TOKEN ----------------
-  // async refreshToken(refreshToken: string): Promise<{ token: string }> {
-  //   try {
-  //     if (!config.jwtRefresh)
-  //       throw new Error("JWT refresh secret is not configured");
-  //     const payload = jwt.verify(refreshToken, config.jwtRefresh) as JwtPayload;
-
-  //     if (!config.jwtSecret) throw new Error("JWT secret is not configured");
-  //     const token = jwt.sign(
-  //       { userId: payload.userId, role: payload.role },
-  //       config.jwtSecret,
-  //       {
-  //         expiresIn: "1h",
-  //       }
-  //     );
-
-  //     return { token };
-  //   } catch {
-  //     throw new Error("Invalid refresh token");
-  //   }
-  // }
   async refreshToken(
     oldRefreshToken: string
   ): Promise<{ accessToken: string; refreshToken: string }> {
@@ -161,9 +138,12 @@ export class AuthService {
   }
 
   //-----------------Protection Route------------------
-  getProfileFromRequest(req: { user?: { sub: string; role: string } }): {
+  getProfileFromRequest(req: {
+    user?: { sub: string; role: string; exp: Date };
+  }): {
     sub: string;
     role: string;
+    exp: Date;
   } {
     if (!req.user) {
       throw new Error("Unauthorized");
@@ -172,6 +152,7 @@ export class AuthService {
     return {
       sub: req.user.sub,
       role: req.user.role,
+      exp: req.user.exp,
     };
   }
 

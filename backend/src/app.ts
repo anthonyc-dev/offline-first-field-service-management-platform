@@ -3,7 +3,6 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
-import { config } from "./config/env.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import syncRoutes from "./modules/sync/sync.routes.js";
 import taskRoutes from "./modules/tasks/task.routes.js";

@@ -6,6 +6,7 @@ declare global {
       user?: {
         sub: string;
         role: string;
+        exp: Date;
       } & JsonWebTokenPayload;
     }
   }
