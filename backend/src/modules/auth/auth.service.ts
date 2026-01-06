@@ -26,7 +26,7 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) throw new Error("Invalid email or password");
 
-    // Optional: limit active sessions per user
+    // limit active sessions per user
     const activeSessions = await prisma.refreshToken.count({
       where: {
         userId: user.id,

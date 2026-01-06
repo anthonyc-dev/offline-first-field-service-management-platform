@@ -1,7 +1,6 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
-import { getDeviceId } from "../../shared/utils/device.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -51,10 +50,8 @@ export class AuthController {
         ipAddress,
       });
 
-      // Set httpOnly cookies
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
-      // Return user data only (tokens are in cookies)
       res.status(200).json({ user: result.user });
     } catch (error) {
       console.error(error);
@@ -75,10 +72,8 @@ export class AuthController {
       };
       const result = await authService.register(userData);
 
-      // Set httpOnly cookies
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
-      // Return user data only (tokens are in cookies)
       res.status(201).json({ user: result.user });
     } catch (error) {
       console.error(error);
@@ -98,7 +93,6 @@ export class AuthController {
 
       const result = await authService.refreshToken(refreshToken, deviceId);
 
-      // Set new httpOnly cookies
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
       res.status(200).json({ message: "Tokens refreshed successfully" });
@@ -125,13 +119,11 @@ export class AuthController {
         await authService.logout(refreshToken);
       }
 
-      // Clear cookies
       this.clearAuthCookies(res);
 
       res.status(200).json({ message: "Logged out successfully" });
     } catch (error) {
       console.error(error);
-      // Clear cookies even if logout fails
       this.clearAuthCookies(res);
       res.status(400).json({ error: "Logout failed" });
     }
@@ -147,7 +139,6 @@ export class AuthController {
 
       await authService.logoutAll(userId);
 
-      // Clear cookies
       this.clearAuthCookies(res);
 
       res

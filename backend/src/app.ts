@@ -20,7 +20,7 @@ export function createApp(): Express {
   app.use(cookieParser());
   app.set("trust proxy", true);
 
-  // 🔑 GLOBAL CONTEXT MIDDLEWARE
+  // GLOBAL CONTEXT MIDDLEWARE
   app.use(requestContext);
 
   // Routes

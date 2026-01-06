@@ -15,6 +15,8 @@ router.post(
   authentication,
   authController.profile.bind(authController)
 );
+
+// Logout all
 router.post(
   "/logout-all",
   authentication,
