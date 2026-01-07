@@ -17,9 +17,20 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       DATABASE_URL: ${DATABASE_URL}
+      DATABASE_TEST_URL: ${DATABASE_TEST_URL}
     command: npm run dev
     depends_on:
       - db
+
+  # api-test:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   environment:
+  #     NODE_ENV: test
+  #     DATABASE_TEST_URL: postgres://postgres:postgres@db:5432/testdb
+  #   depends_on:
+  #     - db
 
   db:
     image: postgres:16-alpine

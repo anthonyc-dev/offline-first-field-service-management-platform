@@ -24,25 +24,39 @@ model User {
   password     String
   role         String
   phoneNumber  String
-  tokens       RefreshToken[]
+  sessions     Session[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
-model RefreshToken {
-  id            String   @id @default(uuid())
-  userId        String
-  tokenHash     String   @unique
-  deviceId      String
-  userAgent     String
-  ipAddress     String
-  expiresAt     DateTime
-  revokedAt     DateTime?
-  replacedById  String?
-  createdAt     DateTime @default(now())
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  deviceId   String
+  userAgent  String
+  ipAddress  String
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @updatedAt
+  revokedAt  DateTime?
 
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([deviceId])
+
+  RefreshToken RefreshToken[]
+}
+
+model RefreshToken {
+  id            String   @id @default(uuid())
+  sessionId     String
+  tokenHash     String   @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  replacedById  String?
+  createdAt     DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id])
+
+  @@index([sessionId])
 }

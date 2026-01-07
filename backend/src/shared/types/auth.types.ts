@@ -1,3 +1,5 @@
+import type { Roles } from "../constants/role.js";
+
 // JWT payload type
 export interface JwtPayload {
   userId: string;
@@ -44,4 +46,9 @@ export interface RequestContext {
   ipAddress: string;
   userAgent: string;
   deviceId: string;
+}
+
+export interface AuthPayload {
+  userId: string;
+  role: Roles;
 }

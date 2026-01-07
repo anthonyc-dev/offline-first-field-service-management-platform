@@ -1,0 +1,10 @@
+services:
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: test
+      DATABASE_TEST_URL: postgres://postgres:postgres@db:5432/testdb
+    depends_on:
+      - db

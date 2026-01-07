@@ -61,11 +61,14 @@ export class AuthController {
 
   async register(req: Request, res: Response): Promise<void> {
     try {
-      const { user } = req.body;
+      const { fullName, email, password, phoneNumber } = req.body;
       const { deviceId, userAgent, ipAddress } = req.context;
 
       const userData = {
-        ...user,
+        fullName,
+        email,
+        password,
+        phoneNumber,
         deviceId,
         userAgent,
         ipAddress,

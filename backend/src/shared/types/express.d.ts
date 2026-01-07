@@ -1,12 +1,13 @@
 import type { JwtPayload as JsonWebTokenPayload } from "jsonwebtoken";
 import type { RequestContext } from "./auth.types.ts";
+import type { Roles } from "../constants/role.js";
 
 declare global {
   namespace Express {
     interface Request {
       user?: {
         sub: string;
-        role: string;
+        role: Roles;
         exp: Date;
       } & JsonWebTokenPayload;
       context?: {

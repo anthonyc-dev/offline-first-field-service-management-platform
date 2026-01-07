@@ -26,50 +26,77 @@ export class AuthService {
     const isValid = await bcrypt.compare(password, user.password);
     if (!isValid) throw new Error("Invalid email or password");
 
-    // limit active sessions per user
-    const activeSessions = await prisma.refreshToken.count({
-      where: {
-        userId: user.id,
-        revokedAt: null,
-        expiresAt: { gt: new Date() },
-      },
+    return await prisma.$transaction(async (tx) => {
+      // Limit active sessions (global, not per device)
+      const activeSessions = await tx.session.count({
+        where: { userId: user.id, revokedAt: null },
+      });
+
+      if (activeSessions >= 5) {
+        throw new Error("Too many active sessions");
+      }
+
+      // Revoke existing session(s) for this device
+      const sessionsToRevoke = await tx.session.findMany({
+        where: {
+          userId: user.id,
+          deviceId,
+          revokedAt: null,
+        },
+        select: { id: true },
+      });
+
+      const sessionIds = sessionsToRevoke.map((s) => s.id);
+
+      if (sessionIds.length > 0) {
+        // Revoke refresh tokens first
+        await tx.refreshToken.updateMany({
+          where: {
+            sessionId: { in: sessionIds },
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+
+        // Revoke sessions
+        await tx.session.updateMany({
+          where: { id: { in: sessionIds } },
+          data: { revokedAt: new Date() },
+        });
+      }
+
+      // Create new session
+      const session = await tx.session.create({
+        data: {
+          userId: user.id,
+          deviceId,
+          userAgent,
+          ipAddress,
+        },
+      });
+
+      // Create refresh token
+      const refreshToken = generateRefreshToken();
+
+      await tx.refreshToken.create({
+        data: {
+          sessionId: session.id,
+          tokenHash: hashToken(refreshToken),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+        },
+        accessToken: signAccessToken(user),
+        refreshToken,
+      };
     });
-
-    if (activeSessions >= 5) {
-      throw new Error("Too many active sessions");
-    }
-
-    const refreshToken = generateRefreshToken();
-
-    // Pseudo Prisma example
-    await prisma.refreshToken.updateMany({
-      where: { userId: user.id, deviceId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
-
-    await prisma.refreshToken.create({
-      data: {
-        userId: user.id,
-        tokenHash: hashToken(refreshToken),
-        deviceId,
-        userAgent,
-        ipAddress,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-    const safeUser = {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-    };
-
-    return {
-      user: safeUser,
-      accessToken: signAccessToken(user),
-      refreshToken,
-    };
   }
 
   // ---------------- REGISTER ----------------
@@ -103,15 +130,23 @@ export class AuthService {
       },
     });
 
+    // Create session for new user
+    const session = await prisma.session.create({
+      data: {
+        userId: user.id,
+        deviceId,
+        userAgent,
+        ipAddress,
+      },
+    });
+
+    // Generate and create refresh token linked to session
     const refreshToken = generateRefreshToken();
 
     await prisma.refreshToken.create({
       data: {
-        userId: user.id,
+        sessionId: session.id,
         tokenHash: hashToken(refreshToken),
-        deviceId,
-        userAgent,
-        ipAddress,
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
@@ -138,42 +173,52 @@ export class AuthService {
     const tokenHash = hashToken(oldRefreshToken);
 
     return await prisma.$transaction(async (tx) => {
-      // Find token in DB
+      // Find token in DB with its session
       const storedToken = await tx.refreshToken.findUnique({
         where: { tokenHash },
+        include: { session: true },
       });
 
       // 🔥 TOKEN REUSE DETECTED
       if (!storedToken || storedToken.revokedAt) {
-        // If this token was revoked, possible token reuse attack: revoke all tokens for this user if known!
-        const stored = storedToken;
-        if (stored) {
-          await tx.refreshToken.updateMany({
-            where: { userId: stored.userId },
+        // If this token was revoked, possible token reuse attack: revoke all sessions for this user if known!
+        if (storedToken?.session) {
+          await tx.session.updateMany({
+            where: { userId: storedToken.session.userId },
             data: { revokedAt: new Date() },
           });
         }
         throw new Error("Refresh token reuse detected");
       }
 
+      // Check if token is expired
       if (storedToken.expiresAt < new Date()) {
         throw new Error("Invalid refresh token");
       }
 
-      if (storedToken.deviceId !== deviceId) {
+      // Check if session is revoked
+      if (storedToken.session.revokedAt) {
+        throw new Error("Session revoked");
+      }
+
+      // Check device mismatch
+      if (storedToken.session.deviceId !== deviceId) {
         throw new Error("Device mismatch");
       }
+
+      // Update session lastUsedAt
+      await tx.session.update({
+        where: { id: storedToken.sessionId },
+        data: { lastUsedAt: new Date() },
+      });
 
       // Generate new refresh token
       const newRefreshToken = generateRefreshToken();
 
       const newToken = await tx.refreshToken.create({
         data: {
-          userId: storedToken.userId,
+          sessionId: storedToken.sessionId,
           tokenHash: hashToken(newRefreshToken),
-          deviceId: storedToken.deviceId,
-          userAgent: storedToken.userAgent,
-          ipAddress: storedToken.ipAddress,
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       });
@@ -189,7 +234,7 @@ export class AuthService {
 
       // Generate new access token
       const user = await tx.user.findUnique({
-        where: { id: storedToken.userId },
+        where: { id: storedToken.session.userId },
       });
       if (!user) throw new Error("User not found");
 
@@ -220,17 +265,54 @@ export class AuthService {
 
   // ---------------- LOGOUT ----------------
   async logout(refreshToken: string): Promise<void> {
-    await prisma.refreshToken.updateMany({
-      where: { tokenHash: hashToken(refreshToken), revokedAt: null },
-      data: { revokedAt: new Date() },
+    const tokenHash = hashToken(refreshToken);
+
+    const storedToken = await prisma.refreshToken.findUnique({
+      where: { tokenHash },
+      include: { session: true },
     });
+
+    if (storedToken) {
+      // Revoke the session and all its refresh tokens
+      await prisma.$transaction(async (tx) => {
+        await tx.session.update({
+          where: { id: storedToken.sessionId },
+          data: { revokedAt: new Date() },
+        });
+
+        await tx.refreshToken.updateMany({
+          where: { sessionId: storedToken.sessionId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      });
+    }
   }
 
   // ---------------- LOGOUT ALL DEVICE ----------------
   async logoutAll(userId: string) {
-    await prisma.refreshToken.updateMany({
-      where: { userId, revokedAt: null },
-      data: { revokedAt: new Date() },
+    await prisma.$transaction(async (tx) => {
+      // Revoke all sessions for the user
+      await tx.session.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+
+      // Revoke all refresh tokens for all sessions of this user
+      const sessions = await tx.session.findMany({
+        where: { userId },
+        select: { id: true },
+      });
+
+      const sessionIds = sessions.map((s) => s.id);
+      if (sessionIds.length > 0) {
+        await tx.refreshToken.updateMany({
+          where: {
+            sessionId: { in: sessionIds },
+            revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+      }
     });
   }
 }
