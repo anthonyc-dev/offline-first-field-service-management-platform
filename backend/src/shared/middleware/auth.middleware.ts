@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import { config } from "../../config/env.js";
+import type { Roles } from "../constants/role.js";
 
 export function authentication(
   req: Request,
@@ -20,7 +21,7 @@ export function authentication(
     }
     req.user = decoded as {
       sub: string;
-      role: string;
+      role: Roles;
       exp: Date;
     } & jwt.JwtPayload;
     next();
