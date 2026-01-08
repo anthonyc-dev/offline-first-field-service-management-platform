@@ -1,10 +1,75 @@
+# services:
+#   db-test:
+#     image: postgres:16-alpine
+#     container_name: postgres_test
+#     environment:
+#       POSTGRES_USER: postgres
+#       POSTGRES_PASSWORD: test_pass_db
+#       POSTGRES_DB: test_db_docker
+#     ports:
+#       - "5433:5432"
+#     volumes:
+#       - pg_test_data_docker:/var/lib/postgresql/data
+#     mem_limit: 256m
+#     command: >
+#       postgres
+#       -c shared_buffers=128MB
+#       -c work_mem=4MB
+#       -c maintenance_work_mem=64MB
+#       -c max_connections=50
+#       -c effective_cache_size=256MB
+
+# volumes:
+#   pg_test_data_docker:
+version: "3.9"
+
 services:
-  api-test:
+  # ------------------ Postgres Test DB ------------------
+  db-test:
+    image: postgres:16-alpine
+    container_name: postgres_test
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_pass
+      POSTGRES_DB: test_db
+    ports:
+      - "5433:5432" # only for host access, optional
+    # ephemeral DB: tmpfs ensures clean DB each run
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 2s
+      retries: 10
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+      -c max_connections=50
+      -c effective_cache_size=256MB
+
+  # ------------------ Node / Test Runner ------------------
+  app-test:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    container_name: auth_service_test
     environment:
       NODE_ENV: test
-      DATABASE_TEST_URL: postgres://postgres:postgres@db:5432/testdb
+      DATABASE_URL: "postgresql://test_user:test_pass@db-test:5432/test_db?schema=public"
     depends_on:
-      - db
+      - db-test
+    # wait for DB to be ready, then run Jest
+    command: >
+      sh -c "
+      until pg_isready -h db-test -p 5432; do
+        echo 'Waiting for Postgres...'; sleep 1;
+      done;
+      echo 'Postgres is ready, running tests...';
+      npx jest --runInBand --ci
+      "
+
+volumes:
+  # no persistent volume for tests → fresh DB every run
+  db_test_data: {}
