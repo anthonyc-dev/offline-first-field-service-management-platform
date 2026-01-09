@@ -12,7 +12,12 @@ export function createApp(): Express {
   const app = express();
 
   // Middleware
-  app.use(helmet());
+  app.use(
+    helmet({
+      contentSecurityPolicy: true,
+      crossOriginEmbedderPolicy: true,
+    })
+  );
   app.use(cors({ credentials: true, origin: true }));
   app.use(morgan("dev"));
   app.use(express.json());
