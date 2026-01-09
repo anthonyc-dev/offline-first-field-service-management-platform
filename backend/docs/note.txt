@@ -1,0 +1,3 @@
+
+Next to do for Event / audit log
+  - Elasticsearch/OpenSearch for searchable audit logs + Object Storage (S3) for immutable long-term audit history

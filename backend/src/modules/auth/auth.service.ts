@@ -32,8 +32,27 @@ export class AuthService {
         where: { userId: user.id, revokedAt: null },
       });
 
-      if (activeSessions >= 5) {
-        throw new Error("Too many active sessions");
+      const MAX_SESSION = 5;
+
+      if (activeSessions >= MAX_SESSION) {
+        // throw new Error("Too many active sessions");
+        // Revoke oldest session automatically
+        const oldestSession = await tx.session.findFirst({
+          where: { userId: user.id, revokedAt: null },
+          orderBy: { createdAt: "asc" },
+        });
+
+        await tx.session.update({
+          where: { id: oldestSession!.id },
+          data: { revokedAt: new Date() },
+        });
+
+        // Option 2: Revoke ALL sessions from this specific device first
+        // (This happens later in your code anyway)
+
+        throw new Error(
+          "Maximum sessions reached. Please log out from another device."
+        );
       }
 
       // Revoke existing session(s) for this device
@@ -291,24 +310,31 @@ export class AuthService {
   // ---------------- LOGOUT ALL DEVICE ----------------
   async logoutAll(userId: string) {
     await prisma.$transaction(async (tx) => {
-      // Revoke all sessions for the user
-      await tx.session.updateMany({
-        where: { userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-
-      // Revoke all refresh tokens for all sessions of this user
-      const sessions = await tx.session.findMany({
-        where: { userId },
+      // 1. First, get all ACTIVE session IDs
+      const activeSessions = await tx.session.findMany({
+        where: {
+          userId,
+          revokedAt: null, // Only active sessions
+        },
         select: { id: true },
       });
 
-      const sessionIds = sessions.map((s) => s.id);
-      if (sessionIds.length > 0) {
+      const activeSessionIds = activeSessions.map((s) => s.id);
+
+      if (activeSessionIds.length > 0) {
+        // 2. Revoke all refresh tokens for ACTIVE sessions
         await tx.refreshToken.updateMany({
           where: {
-            sessionId: { in: sessionIds },
+            sessionId: { in: activeSessionIds },
             revokedAt: null,
+          },
+          data: { revokedAt: new Date() },
+        });
+
+        // 3. Revoke all ACTIVE sessions
+        await tx.session.updateMany({
+          where: {
+            id: { in: activeSessionIds },
           },
           data: { revokedAt: new Date() },
         });
