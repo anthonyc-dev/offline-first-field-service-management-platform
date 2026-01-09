@@ -314,7 +314,7 @@ export class AuthService {
       const activeSessions = await tx.session.findMany({
         where: {
           userId,
-          revokedAt: null, // Only active sessions
+          revokedAt: null,
         },
         select: { id: true },
       });
