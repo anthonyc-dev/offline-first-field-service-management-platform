@@ -7,6 +7,9 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import syncRoutes from "./modules/sync/sync.routes.js";
 import taskRoutes from "./modules/tasks/task.routes.js";
 import { requestContext } from "./shared/middleware/request-context.middleware.js";
+import { notFound } from "./shared/errors/notFound.js";
+import { errorHandler } from "./shared/errors/errorHandler.js";
+import { requestId } from "./shared/middleware/requestId.middleware.js";
 
 export function createApp(): Express {
   const app = express();
@@ -28,6 +31,8 @@ export function createApp(): Express {
   // GLOBAL CONTEXT MIDDLEWARE
   app.use(requestContext);
 
+  app.use(requestId);
+
   // 100 requests per 60 seconds
   // app.use(rateLimiter({ window: 60, limit: 5 }));
 
@@ -40,6 +45,12 @@ export function createApp(): Express {
   app.get("/health", (_, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
+
+  // 404 handler
+  app.use(notFound);
+
+  // global error handler
+  app.use(errorHandler);
 
   return app;
 }

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { getRedisClient } from "../libs/rateLimiter-connection.js";
+import { ApiError } from "../errors/ApiError.js";
 
 export const rateLimiter = ({
   window,
@@ -42,13 +43,13 @@ export const rateLimiter = ({
         //--- Set Retry-After header, client knows when to retry
         res.setHeader("Retry-After", window);
 
-        return res.status(429).json({ message: "Too many requests" });
+        throw new ApiError(429, "Too many requests");
       }
 
       next();
     } catch (err) {
       console.error("Rate limiter error:", err);
-      next();
+      next(err);
     }
   };
 };
