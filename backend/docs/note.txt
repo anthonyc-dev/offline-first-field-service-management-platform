@@ -1,3 +1,12 @@
+Dcoker Redis cli command:
+     docker exec -it backend-redis-1 redis-cli
+     KEYS * 
+     ZCARD rate:172.18.0.1
+     ZRANGE rate:172.18.0.1 0 -1 WITHSCORES 
+       
+     - View Audit log rate limit command
+       LRANGE rate_limit_hits 0 9
+
 
 Next to do for Event / audit log
   - Elasticsearch/OpenSearch for searchable audit logs + Object Storage (S3) for immutable long-term audit history

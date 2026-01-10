@@ -28,13 +28,16 @@ export function createApp(): Express {
   // GLOBAL CONTEXT MIDDLEWARE
   app.use(requestContext);
 
+  // 100 requests per 60 seconds
+  // app.use(rateLimiter({ window: 60, limit: 5 }));
+
   // Routes
   app.use("/api/auth", authRoutes);
   app.use("/api/sync", syncRoutes);
   app.use("/api/tasks", taskRoutes);
 
   // Health check
-  app.get("/health", (req, res) => {
+  app.get("/health", (_, res) => {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 

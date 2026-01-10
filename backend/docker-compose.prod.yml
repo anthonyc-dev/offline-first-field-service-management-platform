@@ -11,9 +11,26 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV}
       DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
     depends_on:
       - db
+      - redis
     restart: always
+
+  redis:
+    image: redis:8-alpine
+    ports:
+      - "6379:6379"
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--appendfilename",
+        "appendonly.aof",
+      ]
+    volumes:
+      - redis_data:/data
 
   db:
     image: postgres:16-alpine
@@ -32,3 +49,4 @@ services:
 
 volumes:
   pg_prod_data:
+  redis_data:
