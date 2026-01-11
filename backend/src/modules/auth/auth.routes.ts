@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { authController } from "./auth.controller.js";
-import { authentication } from "../../shared/middleware/auth.middleware.js";
-import { rateLimiter } from "../../shared/middleware/rateLimiter.middleware.js";
-import { validate } from "../../shared/middleware/validate.middleware.js";
+import { rateLimiter } from "#shared/middleware/rateLimiter.middleware.js";
+import { validate } from "#shared/middleware/validate.middleware.js";
 import { loginSchema, registerSchema } from "./auth.schema.js";
+import { authController } from "./auth.controller.js";
+import { authentication } from "#shared/middleware/auth.middleware.js";
 
 const router = Router();
 

@@ -6,8 +6,13 @@
   "author": "",
   "type": "module",
   "main": "index.js",
+  "imports": {
+    "#config/*": "./src/config/*",
+    "#modules/*": "./src/modules/*",
+    "#shared/*": "./src/shared/*"
+  },
   "scripts": {
-    "test": "NODE_ENV=test jest --runInBand",
+    "test": "jest",
     "test:docker": "docker compose -f docker-compose.test.yml up -d && cross-env NODE_ENV=test npx prisma db push && cross-env NODE_ENV=test jest --runInBand && docker compose -f docker-compose.test.yml down -v",
     "dev": "nodemon",
     "build": "tsc",
