@@ -10,6 +10,7 @@ import {
   hashToken,
   signAccessToken,
 } from "../../shared/utils/tokens.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
 
 export class AuthService {
   // ---------------- LOGIN ----------------
@@ -21,10 +22,20 @@ export class AuthService {
     ipAddress,
   }: LoginInput): Promise<AuthResponse> {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) throw new Error("Invalid email or password");
+    if (!user)
+      throw new ApiError(
+        401,
+        "Invalid email or password",
+        "AUTH_INVALID_CREDENTIALS"
+      );
 
     const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid) throw new Error("Invalid email or password");
+    if (!isValid)
+      throw new ApiError(
+        401,
+        "Invalid email or password",
+        "AUTH_INVALID_CREDENTIALS"
+      );
 
     return await prisma.$transaction(async (tx) => {
       // Limit active sessions (global, not per device)
@@ -42,16 +53,19 @@ export class AuthService {
           orderBy: { createdAt: "asc" },
         });
 
-        await tx.session.update({
-          where: { id: oldestSession!.id },
-          data: { revokedAt: new Date() },
-        });
+        if (oldestSession) {
+          await tx.session.update({
+            where: { id: oldestSession.id },
+            data: { revokedAt: new Date() },
+          });
+        }
 
         // Option 2: Revoke ALL sessions from this specific device first
         // (This happens later in your code anyway)
-
-        throw new Error(
-          "Maximum sessions reached. Please log out from another device."
+        throw new ApiError(
+          409,
+          "Maximum sessions reached. Please log out from another device.",
+          "AUTH_MAX_SESSIONS"
         );
       }
 
@@ -132,10 +146,19 @@ export class AuthService {
     } = input;
 
     if (!fullName || !email || !password || !phoneNumber)
-      throw new Error("Missing required fields");
+      throw new ApiError(
+        400,
+        "Missing required fields",
+        "AUTH_REGISTER_MISSING_FIELDS"
+      );
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) throw new Error("Email already registered");
+    if (existingUser)
+      throw new ApiError(
+        409,
+        "Email already registered",
+        "AUTH_EMAIL_ALREADY_REGISTERED"
+      );
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -207,22 +230,30 @@ export class AuthService {
             data: { revokedAt: new Date() },
           });
         }
-        throw new Error("Refresh token reuse detected");
+        throw new ApiError(
+          401,
+          "Refresh token reuse detected",
+          "AUTH_REFRESH_TOKEN_REUSE"
+        );
       }
 
       // Check if token is expired
       if (storedToken.expiresAt < new Date()) {
-        throw new Error("Invalid refresh token");
+        throw new ApiError(
+          401,
+          "Invalid refresh token",
+          "AUTH_INVALID_REFRESH_TOKEN"
+        );
       }
 
       // Check if session is revoked
       if (storedToken.session.revokedAt) {
-        throw new Error("Session revoked");
+        throw new ApiError(401, "Session revoked", "AUTH_SESSION_REVOKED");
       }
 
       // Check device mismatch
       if (storedToken.session.deviceId !== deviceId) {
-        throw new Error("Device mismatch");
+        throw new ApiError(403, "Device mismatch", "AUTH_DEVICE_MISMATCH");
       }
 
       // Update session lastUsedAt
@@ -255,7 +286,8 @@ export class AuthService {
       const user = await tx.user.findUnique({
         where: { id: storedToken.session.userId },
       });
-      if (!user) throw new Error("User not found");
+      if (!user)
+        throw new ApiError(404, "User not found", "AUTH_USER_NOT_FOUND");
 
       const accessToken = signAccessToken(user);
 
@@ -272,7 +304,7 @@ export class AuthService {
     exp: Date;
   } {
     if (!req.user) {
-      throw new Error("Unauthorized");
+      throw new ApiError(401, "Unauthorized", "AUTH_UNAUTHORIZED");
     }
     // Return basic info from token payload
     return {

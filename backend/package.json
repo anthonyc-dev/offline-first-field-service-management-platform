@@ -15,7 +15,8 @@
     "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
     "docker:dev:build": "docker-compose -f docker-compose.dev.yml up -d --build",
     "docker:dev:restart": "docker-compose -f docker-compose.dev.yml down && docker-compose -f docker-compose.dev.yml up -d --build",
-    "dev:up": "docker-compose -f docker-compose.dev.yml up -d --build",
+    "docker:dev:up": "docker-compose -f docker-compose.dev.yml up -d --build",
+    "docker:dev:watch": "docker-compose -f docker-compose.dev.yml up --build --watch",
     "dev:migrate": "docker-compose -f docker-compose.dev.yml exec api npx prisma migrate dev",
     "dev:generate": "docker-compose -f docker-compose.dev.yml exec api npx prisma generate",
     "dev:studio": "docker-compose -f docker-compose.dev.yml exec api npx prisma studio --browser none",
@@ -39,7 +40,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "morgan": "^1.10.1",
-    "redis": "^4.7.1"
+    "redis": "^4.7.1",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -15,6 +15,7 @@ declare global {
         userAgent: string;
         deviceId: string;
       };
+      requestId?: string;
     }
   }
 }

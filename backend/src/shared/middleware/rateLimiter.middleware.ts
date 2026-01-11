@@ -43,7 +43,7 @@ export const rateLimiter = ({
         //--- Set Retry-After header, client knows when to retry
         res.setHeader("Retry-After", window);
 
-        throw new ApiError(429, "Too many requests");
+        throw new ApiError(429, "Too many requests", "RATE_LIMIT_EXCEEDED");
       }
 
       next();

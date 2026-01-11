@@ -1,44 +1,92 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "./ApiError.js";
-import { recordError } from "./metrics/errorMetrics.js";
 import { ValidationError } from "./validationError.js";
+import { recordError } from "./metrics/errorMetrics.js";
 
 export const errorHandler = (
-  err: Error | ApiError,
+  err: Error,
   req: Request,
   res: Response,
   _next: NextFunction
 ) => {
+  const requestId = req.requestId ?? req.headers["x-request-id"];
   let statusCode = 500;
-  let message = "Internal Server Error";
+  let response: any = {
+    success: false,
+    message: "Internal Server Error",
+    requestId,
+  };
 
+  /* ==============================
+     API / BUSINESS ERRORS
+  ============================== */
   if (err instanceof ApiError) {
     statusCode = err.statusCode;
-    message = err.message;
+
+    // metrics
+    recordError(statusCode);
+
+    // perational logging (WARN)
+    console.warn({
+      level: "warn",
+      type: "API_ERROR",
+      requestId,
+      code: err.code,
+      message: err.message,
+      path: req.originalUrl,
+      method: req.method,
+    });
+
+    return res.status(statusCode).json({
+      ...response,
+      message: err.message,
+      statusCode,
+      code: err.code,
+    });
   }
 
+  /* ==============================
+     VALIDATION ERRORS
+  ============================== */
   if (err instanceof ValidationError) {
-    return res.status(err.statusCode).json({
-      success: false,
+    statusCode = err.statusCode;
+
+    recordError(statusCode);
+
+    console.warn({
+      level: "warn",
+      type: "VALIDATION_ERROR",
+      requestId,
+      message: err.message,
+      errors: err.errors,
+      path: req.originalUrl,
+      method: req.method,
+    });
+
+    return res.status(statusCode).json({
+      ...response,
       message: err.message,
       errors: err.errors,
     });
   }
 
+  /* ==============================
+     UNEXPECTED / SYSTEM ERRORS
+  ============================== */
   recordError(statusCode);
 
-  // Always log full error in server logs
   console.error({
-    requestId: req.headers["x-request-id"],
+    level: "error",
+    type: "UNHANDLED_ERROR",
+    requestId,
     message: err.message,
     stack: err.stack,
     path: req.originalUrl,
     method: req.method,
   });
 
-  res.status(statusCode).json({
-    success: false,
-    message,
+  return res.status(statusCode).json({
+    ...response,
     ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
   });
 };

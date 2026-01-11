@@ -2,17 +2,21 @@ import { Router } from "express";
 import { authController } from "./auth.controller.js";
 import { authentication } from "../../shared/middleware/auth.middleware.js";
 import { rateLimiter } from "../../shared/middleware/rateLimiter.middleware.js";
+import { validate } from "../../shared/middleware/validate.middleware.js";
+import { loginSchema, registerSchema } from "./auth.schema.js";
 
 const router = Router();
 
 // Public routes
 router.post(
   "/login",
+  validate(loginSchema),
   rateLimiter({ window: 60, limit: 5 }),
   authController.login.bind(authController)
 );
 router.post(
   "/register",
+  validate(registerSchema),
   rateLimiter({ window: 60, limit: 5 }),
   authController.register.bind(authController)
 );

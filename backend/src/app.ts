@@ -46,6 +46,10 @@ export function createApp(): Express {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  app.get("/", (req, res) => {
+    res.send("Hello, world!");
+  });
+
   // 404 handler
   app.use(notFound);
 
