@@ -21,6 +21,7 @@ A robust platform designed to ensure seamless service access and data management
 ## Getting Started
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/anthonyc-dev/offline-first-field-service-management-platform
    cd offline-first-field-service-management-platform
@@ -40,8 +41,8 @@ A robust platform designed to ensure seamless service access and data management
 
 4. **Offline Mode**
 
-   * The platform caches data locally.
-   * Any updates made offline are synced automatically when network is restored.
+   - The platform caches data locally.
+   - Any updates made offline are synced automatically when network is restored.
 
 ## Architecture
 
@@ -57,13 +58,12 @@ A robust platform designed to ensure seamless service access and data management
 
 ## Contributing
 
-* Fork the repository
-* Create a feature branch (`git checkout -b feature/my-feature`)
-* Commit your changes (`git commit -m 'Add feature'`)
-* Push to branch (`git push origin feature/my-feature`)
-* Open a pull request
+- Fork the repository
+- Create a feature branch (`git checkout -b feature/my-feature`)
+- Commit your changes (`git commit -m 'Add feature'`)
+- Push to branch (`git push origin feature/my-feature`)
+- Open a pull request
 
 ## License
 
-MIT License © 2026 Your Name
-
+MIT License © 2026 Anthony Crausus
