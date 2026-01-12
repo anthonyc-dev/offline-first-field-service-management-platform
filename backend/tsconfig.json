@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "rootDir": "./src",
+    "rootDir": ".",
     "outDir": "./dist",
 
     "module": "nodenext",
@@ -24,6 +24,6 @@
 
     "esModuleInterop": true
   },
-  "include": ["src"],
+  "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "dist", "prisma", "*.config.ts"]
 }
