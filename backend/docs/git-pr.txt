@@ -1,0 +1,26 @@
+$ git checkout -b feature/events-logs-metrics
+
+
+$ git add .
+
+
+$ git commit -m "feat(auth): add text file"
+
+    
+$ git push origin feature/events-logs-metrics
+
+   
+$ git checkout master
+
+
+$ git pull origin master
+
+
+$ git merge feature/events-logs-metrics
+
+
+$ git push origin master
+
+$ git branch -d feature/events-logs-metrics
+
+$ git push origin --delete feature/events-logs-metrics
