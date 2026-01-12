@@ -10,7 +10,7 @@ export class AuthController {
     accessToken: string,
     refreshToken: string
   ): void {
-    // Set access token cookie (7 days default, or from config)
+    // Set access token cookie
     const accessTokenMaxAge = 7 * 24 * 60 * 60 * 1000;
     res.cookie("accessToken", accessToken, {
       httpOnly: true,

@@ -38,7 +38,7 @@ export class AuthService {
       );
 
     return await prisma.$transaction(async (tx) => {
-      // Limit active sessions (global, not per device)
+      // Limit active sessions (global)
       const activeSessions = await tx.session.count({
         where: { userId: user.id, revokedAt: null },
       });
@@ -46,7 +46,6 @@ export class AuthService {
       const MAX_SESSION = 5;
 
       if (activeSessions >= MAX_SESSION) {
-        // throw new Error("Too many active sessions");
         // Revoke oldest session automatically
         const oldestSession = await tx.session.findFirst({
           where: { userId: user.id, revokedAt: null },
@@ -221,7 +220,7 @@ export class AuthService {
         include: { session: true },
       });
 
-      // 🔥 TOKEN REUSE DETECTED
+      // TOKEN REUSE DETECTED
       if (!storedToken || storedToken.revokedAt) {
         // If this token was revoked, possible token reuse attack: revoke all sessions for this user if known!
         if (storedToken?.session) {
@@ -342,7 +341,7 @@ export class AuthService {
   // ---------------- LOGOUT ALL DEVICE ----------------
   async logoutAll(userId: string) {
     await prisma.$transaction(async (tx) => {
-      // 1. First, get all ACTIVE session IDs
+      // get all ACTIVE session IDs
       const activeSessions = await tx.session.findMany({
         where: {
           userId,
@@ -354,7 +353,7 @@ export class AuthService {
       const activeSessionIds = activeSessions.map((s) => s.id);
 
       if (activeSessionIds.length > 0) {
-        // 2. Revoke all refresh tokens for ACTIVE sessions
+        //Revoke all refresh tokens for ACTIVE sessions
         await tx.refreshToken.updateMany({
           where: {
             sessionId: { in: activeSessionIds },
@@ -363,7 +362,7 @@ export class AuthService {
           data: { revokedAt: new Date() },
         });
 
-        // 3. Revoke all ACTIVE sessions
+        // Revoke all ACTIVE sessions
         await tx.session.updateMany({
           where: {
             id: { in: activeSessionIds },
