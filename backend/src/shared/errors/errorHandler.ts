@@ -11,7 +11,7 @@ export const errorHandler = (
 ) => {
   const requestId = req.requestId ?? req.headers["x-request-id"];
   let statusCode = 500;
-  let response: any = {
+  const response: any = {
     success: false,
     message: "Internal Server Error",
     requestId,
