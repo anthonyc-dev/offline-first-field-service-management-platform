@@ -2,6 +2,8 @@ import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
 import { loginFailed, loginSuccess } from "./auth.events.js";
+import { ApiError } from "#shared/errors/ApiError.js";
+import { prisma } from "#config/db.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -68,11 +70,26 @@ export class AuthController {
       res.status(200).json({ user: result.user });
     } catch (error) {
       console.error(error);
+
+      let actorId: string | "unknown" = "unknown";
+      let reason = "UNKNOWN_ERROR";
+
+      const user = await prisma.user.findUnique({
+        where: {
+          email: req.body.email,
+        },
+      });
+
+      if (user) actorId = user.id;
+
+      if (error instanceof ApiError) {
+        reason = error.code;
+      }
       await loginFailed({
-        actorId: req.user?.id ?? "unknown",
+        actorId,
         actorRole: "system",
         email: req.body.email,
-        reason: "INVALID_PASSWORD",
+        reason,
         ip: req.context.ipAddress ?? "unknown",
         userAgent: req.context.userAgent,
         deviceFingerprint: req.context.deviceId ?? "unknown",

@@ -24,6 +24,6 @@
 
     "esModuleInterop": true
   },
-  "include": ["src", "__tests__", "tests"],
+  "include": ["src", "__tests__", "tests", "types"],
   "exclude": ["node_modules", "dist", "prisma", "*.config.ts"]
 }

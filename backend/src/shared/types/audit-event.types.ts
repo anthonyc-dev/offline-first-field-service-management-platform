@@ -15,7 +15,7 @@ export interface AuditBase {
 export interface LoginFailedEvent extends AuditBase {
   type: "LOGIN_FAILED";
   email: string;
-  reason?: "INVALID_PASSWORD" | "USER_NOT_FOUND" | "LOCKED";
+  reason?: string;
 }
 
 export interface LoginSuccessEvent extends AuditBase {
