@@ -12,8 +12,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
       path: req.path,
       status: res.statusCode,
       duration,
-      requestId: req.id,
-      userId: req.user?.id,
+      requestId: req.requestId,
+      userId: req.id,
     });
 
     httpRequests.inc({

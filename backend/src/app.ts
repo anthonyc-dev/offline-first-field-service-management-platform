@@ -14,6 +14,7 @@ import { requestLogger } from "#shared/middleware/requestLogger.middleware.js";
 import { register } from "#config/metrics.js";
 import { logger } from "#config/logger.js";
 import { parseCombinedLog } from "#shared/utils/combinedLog.js";
+import { errorMetrics } from "#shared/errors/metrics/errorMetrics.js";
 
 export function createApp(): Express {
   const app = express();
@@ -33,16 +34,16 @@ export function createApp(): Express {
   app.set("trust proxy", true);
 
   // Pipe Morgan into structured logger (JSON)
-  app.use(
-    morgan("combined", {
-      stream: {
-        write: (msg) => {
-          const log = parseCombinedLog(msg);
-          logger.info(log);
-        },
-      },
-    })
-  );
+  // app.use(
+  //   morgan("combined", {
+  //     stream: {
+  //       write: (msg) => {
+  //         const log = parseCombinedLog(msg);
+  //         logger.info(log);
+  //       },
+  //     },
+  //   })
+  // );
 
   // GLOBAL MIDDLEWARE
   app.use(requestContext);
@@ -65,10 +66,18 @@ export function createApp(): Express {
     res.send("Hello, world!");
   });
 
-  //metrics
+  //metrics for dev
   app.get("/metrics", async (_req, res) => {
     res.set("Content-Type", register.contentType);
     res.send(await register.metrics());
+  });
+
+  // for dev
+  app.get("/internal/metrics/errors", (_req, res) => {
+    res.json({
+      totalErrors: errorMetrics.totalErrors,
+      byStatus: Object.fromEntries(errorMetrics.byStatus),
+    });
   });
 
   // 404 handler

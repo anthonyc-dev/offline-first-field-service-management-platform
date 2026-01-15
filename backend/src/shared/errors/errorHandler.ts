@@ -25,9 +25,7 @@ export const errorHandler = (
     statusCode = err.statusCode;
 
     // metrics
-    recordError(statusCode);
-    console.log("recordError", recordError(statusCode));
-    console.log("errorMetrics", errorMetrics);
+    recordError(err.statusCode);
 
     // perational logging (WARN)
     console.warn({
@@ -40,7 +38,7 @@ export const errorHandler = (
       method: req.method,
     });
 
-    logger.error({ err, requestId: req.id });
+    logger.warn({ err, requestId: req.id });
     return res.status(statusCode).json({
       ...response,
       message: err.message,
@@ -67,7 +65,7 @@ export const errorHandler = (
       method: req.method,
     });
 
-    logger.error({ err, requestId: req.id });
+    logger.warn({ err, requestId: req.id });
     return res.status(statusCode).json({
       ...response,
       message: err.message,

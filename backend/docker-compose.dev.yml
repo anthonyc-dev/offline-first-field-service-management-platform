@@ -33,7 +33,15 @@ services:
     image: redis:8-alpine
     ports:
       - "6379:6379"
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command:
+      [
+        "redis-server",
+        "--save",
+        "",
+        --requirepass anthony,
+        "--appendonly",
+        "no",
+      ]
     volumes:
       - redis_dev_data:/data
 
