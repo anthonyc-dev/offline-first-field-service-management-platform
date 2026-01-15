@@ -12,10 +12,11 @@ declare global {
       } & JsonWebTokenPayload;
       context?: {
         ipAddress?: string;
-        userAgent: string;
-        deviceId: string;
+        userAgent?: string;
+        deviceId?: string;
       };
       requestId?: string;
+      id?: any;
     }
   }
 }

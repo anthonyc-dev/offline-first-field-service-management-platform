@@ -10,6 +10,10 @@ import { requestContext } from "./shared/middleware/request-context.middleware.j
 import { notFound } from "./shared/errors/notFound.js";
 import { errorHandler } from "./shared/errors/errorHandler.js";
 import { requestId } from "./shared/middleware/requestId.middleware.js";
+import { requestLogger } from "#shared/middleware/requestLogger.middleware.js";
+import { register } from "#config/metrics.js";
+import { logger } from "#config/logger.js";
+import { parseCombinedLog } from "#shared/utils/combinedLog.js";
 
 export function createApp(): Express {
   const app = express();
@@ -28,11 +32,22 @@ export function createApp(): Express {
   app.use(cookieParser());
   app.set("trust proxy", true);
 
-  // GLOBAL CONTEXT MIDDLEWARE
+  // Pipe Morgan into structured logger (JSON)
+  app.use(
+    morgan("combined", {
+      stream: {
+        write: (msg) => {
+          const log = parseCombinedLog(msg);
+          logger.info(log);
+        },
+      },
+    })
+  );
+
+  // GLOBAL MIDDLEWARE
   app.use(requestContext);
-
   app.use(requestId);
-
+  app.use(requestLogger);
   // 100 requests per 60 seconds
   // app.use(rateLimiter({ window: 60, limit: 5 }));
 
@@ -48,6 +63,12 @@ export function createApp(): Express {
 
   app.get("/", (req, res) => {
     res.send("Hello, world!");
+  });
+
+  //metrics
+  app.get("/metrics", async (_req, res) => {
+    res.set("Content-Type", register.contentType);
+    res.send(await register.metrics());
   });
 
   // 404 handler

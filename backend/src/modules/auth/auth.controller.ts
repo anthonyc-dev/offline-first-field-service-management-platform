@@ -1,6 +1,7 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
+import { loginFailed, loginSuccess } from "./auth.events.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -45,16 +46,39 @@ export class AuthController {
       const result = await authService.login({
         email,
         password,
-        deviceId,
+        deviceId: deviceId ?? "unknown",
         userAgent,
         ipAddress,
       });
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
+      await loginSuccess({
+        actorId: result.user.id,
+        actorRole: "user",
+        userId: result.user.id,
+        email: result.user.email,
+        ip: req.context.ipAddress ?? "unknown",
+        userAgent,
+        deviceFingerprint: deviceId ?? "unknown",
+        requestId: req.requestId ?? "unknown",
+        timestamp: Date.now(),
+      });
+
       res.status(200).json({ user: result.user });
     } catch (error) {
       console.error(error);
+      await loginFailed({
+        actorId: req.user?.id ?? "unknown",
+        actorRole: "system",
+        email: req.body.email,
+        reason: "INVALID_PASSWORD",
+        ip: req.context.ipAddress ?? "unknown",
+        userAgent: req.context.userAgent,
+        deviceFingerprint: req.context.deviceId ?? "unknown",
+        requestId: req.requestId ?? "unknown",
+        timestamp: Date.now(),
+      });
       res.status(401).json({ error: "Invalid credentials" });
     }
   }
@@ -69,7 +93,7 @@ export class AuthController {
         email,
         password,
         phoneNumber,
-        deviceId,
+        deviceId: deviceId ?? "unknown",
         userAgent,
         ipAddress,
       };
@@ -94,7 +118,10 @@ export class AuthController {
 
       const { deviceId } = req.context;
 
-      const result = await authService.refreshToken(refreshToken, deviceId);
+      const result = await authService.refreshToken(
+        refreshToken,
+        deviceId ?? "unknown"
+      );
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
