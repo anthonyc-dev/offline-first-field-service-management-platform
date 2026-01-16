@@ -9,7 +9,7 @@ const RedisConstructor = Redis as unknown as new (
 let bullRedis: RedisType;
 
 try {
-  bullRedis = new RedisConstructor(process.env.REDIS_URL!, {
+  bullRedis = new RedisConstructor(process.env.REDIS_URL || "127.0.0.1", {
     maxRetriesPerRequest: null,
   });
 
