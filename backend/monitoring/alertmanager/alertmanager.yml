@@ -1,0 +1,44 @@
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: "smtp.gmail.com:587"
+  smtp_from: "anthonycrausus14.ncmc@gmail.com"
+  smtp_auth_username: "anthonycrausus14.ncmc@gmail.com"
+  smtp_auth_password: "menbfbcuauqsaoat"
+  smtp_require_tls: true
+
+route:
+  receiver: "email-alert"
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 12h
+
+receivers:
+  - name: "email-alert"
+    email_configs:
+      - to: "takasukunami76@gmail.com"
+        send_resolved: true
+        headers:
+          Subject: "Alert: {{ .CommonLabels.alertname }} - {{ .Status | toUpper }}"
+        html: |
+          <h2>Alert Details</h2>
+          <p><strong>Alert Name:</strong> {{ .CommonLabels.alertname }}</p>
+          <p><strong>Status:</strong> {{ .Status | toUpper }}</p>
+          <p><strong>Severity:</strong> {{ .CommonLabels.severity }}</p>
+          <hr>
+          <h3>Alerts:</h3>
+          {{ range .Alerts }}
+          <div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+            <p><strong>Summary:</strong> {{ .Annotations.summary }}</p>
+            <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+            <p><strong>Started:</strong> {{ .StartsAt }}</p>
+            {{ if eq .Status "resolved" }}
+            <p><strong>Resolved:</strong> {{ .EndsAt }}</p>
+            {{ end }}
+            <p><strong>Labels:</strong></p>
+            <ul>
+              {{ range .Labels.SortedPairs }}
+              <li><strong>{{ .Name }}:</strong> {{ .Value }}</li>
+              {{ end }}
+            </ul>
+          </div>
+          {{ end }}

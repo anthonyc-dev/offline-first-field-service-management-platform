@@ -11,7 +11,7 @@ const auditWorker = new Worker(
       // TODO: store in DB or SIEM
     } catch (err) {
       logger.error({ err, job: job.id }, "Error processing audit event");
-      throw err; // rethrow to allow BullMQ to handle retries/failures
+      throw err;
     }
   },
   { connection: bullRedis }

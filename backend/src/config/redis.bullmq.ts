@@ -6,6 +6,23 @@ const RedisConstructor = Redis as unknown as new (
   options?: any
 ) => RedisType;
 
-export const bullRedis = new RedisConstructor(process.env.REDIS_URL!, {
-  maxRetriesPerRequest: null,
-});
+let bullRedis: RedisType;
+
+try {
+  bullRedis = new RedisConstructor(process.env.REDIS_URL!, {
+    maxRetriesPerRequest: null,
+  });
+
+  bullRedis.on("error", (err: Error) => {
+    console.error("Bull Redis connection error:", err);
+  });
+
+  bullRedis.on("connect", () => {
+    console.log("Bull Redis connected");
+  });
+} catch (error) {
+  console.error("Failed to initialize Bull Redis:", error);
+  throw error;
+}
+
+export { bullRedis };
