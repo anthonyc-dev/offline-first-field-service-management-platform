@@ -24,28 +24,28 @@ model User {
   password     String
   role         String
   phoneNumber  String
-  sessions     Session[]
+  // sessions     Session[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
-model Session {
-  id         String   @id @default(uuid())
-  userId     String
-  deviceId   String
-  userAgent  String
-  ipAddress  String
-  createdAt  DateTime @default(now())
-  lastUsedAt DateTime @updatedAt
-  revokedAt  DateTime?
+// model Session {
+//   id         String   @id @default(uuid())
+//   userId     String
+//   deviceId   String
+//   userAgent  String
+//   ipAddress  String
+//   createdAt  DateTime @default(now())
+//   lastUsedAt DateTime @updatedAt
+//   revokedAt  DateTime?
 
-  user User @relation(fields: [userId], references: [id])
+//   user User @relation(fields: [userId], references: [id])
 
-  @@index([userId])
-  @@index([deviceId])
+//   @@index([userId])
+//   @@index([deviceId])
 
-  RefreshToken RefreshToken[]
-}
+//   RefreshToken RefreshToken[]
+// }
 
 model RefreshToken {
   id            String   @id @default(uuid())
@@ -56,7 +56,7 @@ model RefreshToken {
   replacedById  String?
   createdAt     DateTime @default(now())
 
-  session Session @relation(fields: [sessionId], references: [id])
+  // session Session @relation(fields: [sessionId], references: [id])
 
   @@index([sessionId])
 }

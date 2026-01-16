@@ -11,6 +11,15 @@ import {
   signAccessToken,
 } from "../../shared/utils/tokens.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
+import {
+  createSession,
+  getSession,
+  getUserSessions,
+  revokeSession,
+} from "#shared/session/redisSession.js";
+import { randomUUID } from "crypto";
+
+const MAX_SESSIONS = 5;
 
 export class AuthService {
   // ---------------- LOGIN ----------------
@@ -21,114 +30,93 @@ export class AuthService {
     userAgent,
     ipAddress,
   }: LoginInput): Promise<AuthResponse> {
+    // 1️⃣ Find user in DB
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user)
       throw new ApiError(
         401,
-        "Invalid email or password",
+        "Invalid credentials",
         "AUTH_INVALID_CREDENTIALS"
       );
 
-    const isValid = await bcrypt.compare(password, user.password);
-    if (!isValid)
+    // 2️⃣ Verify password
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid)
       throw new ApiError(
         401,
-        "Invalid email or password",
+        "Invalid credentials",
         "AUTH_INVALID_CREDENTIALS"
       );
 
-    return await prisma.$transaction(async (tx) => {
-      // Limit active sessions (global)
-      const activeSessions = await tx.session.count({
-        where: { userId: user.id, revokedAt: null },
-      });
+    console.log("Login attempt for email:", email);
+    console.log("User found:", user);
+    if (user) console.log("Stored hash:", user.password);
 
-      const MAX_SESSION = 5;
+    // 3️⃣ Handle Redis sessions
+    const sessions = await getUserSessions(user.id);
 
-      if (activeSessions >= MAX_SESSION) {
-        // Revoke oldest session automatically
-        const oldestSession = await tx.session.findFirst({
-          where: { userId: user.id, revokedAt: null },
-          orderBy: { createdAt: "asc" },
-        });
+    // Revoke oldest session if exceeding MAX_SESSIONS
+    if (sessions.length >= MAX_SESSIONS) {
+      let oldestId: string | null = null;
+      let oldestTime = Date.now();
 
-        if (oldestSession) {
-          await tx.session.update({
-            where: { id: oldestSession.id },
-            data: { revokedAt: new Date() },
-          });
+      for (const sId of sessions) {
+        const sess = await getSession(sId);
+        if (sess && sess.createdAt < oldestTime) {
+          oldestTime = sess.createdAt;
+          oldestId = sId;
         }
-
-        // Option 2: Revoke ALL sessions from this specific device first
-        // (This happens later in your code anyway)
-        throw new ApiError(
-          409,
-          "Maximum sessions reached. Please log out from another device.",
-          "AUTH_MAX_SESSIONS"
-        );
       }
 
-      // Revoke existing session(s) for this device
-      const sessionsToRevoke = await tx.session.findMany({
-        where: {
-          userId: user.id,
-          deviceId,
-          revokedAt: null,
-        },
-        select: { id: true },
-      });
+      if (oldestId) await revokeSession(oldestId, user.id);
+    }
 
-      const sessionIds = sessionsToRevoke.map((s) => s.id);
+    // Revoke session for same device
+    for (const sId of sessions) {
+      const sess = await getSession(sId);
+      if (sess?.deviceId === deviceId) {
+        await revokeSession(sId, user.id);
 
-      if (sessionIds.length > 0) {
-        // Revoke refresh tokens first
-        await tx.refreshToken.updateMany({
-          where: {
-            sessionId: { in: sessionIds },
-            revokedAt: null,
-          },
-          data: { revokedAt: new Date() },
-        });
-
-        // Revoke sessions
-        await tx.session.updateMany({
-          where: { id: { in: sessionIds } },
+        // Revoke associated refresh tokens in DB
+        await prisma.refreshToken.updateMany({
+          where: { sessionId: sId, revokedAt: null },
           data: { revokedAt: new Date() },
         });
       }
+    }
 
-      // Create new session
-      const session = await tx.session.create({
-        data: {
-          userId: user.id,
-          deviceId,
-          userAgent,
-          ipAddress,
-        },
-      });
-
-      // Create refresh token
-      const refreshToken = generateRefreshToken();
-
-      await tx.refreshToken.create({
-        data: {
-          sessionId: session.id,
-          tokenHash: hashToken(refreshToken),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      });
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          fullName: user.fullName,
-          role: user.role,
-        },
-        accessToken: signAccessToken(user),
-        refreshToken,
-      };
+    // 4️⃣ Create new Redis session
+    const sessionId = randomUUID();
+    await createSession(sessionId, {
+      userId: user.id,
+      deviceId,
+      userAgent,
+      ipAddress,
+      createdAt: Date.now(),
+      lastUsedAt: Date.now(),
     });
+
+    // 5️⃣ Create refresh token in DB
+    const refreshToken = generateRefreshToken();
+    await prisma.refreshToken.create({
+      data: {
+        sessionId,
+        tokenHash: hashToken(refreshToken),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    // 6️⃣ Return auth response
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
+      accessToken: signAccessToken(user),
+      refreshToken,
+    };
   }
 
   // ---------------- REGISTER ----------------
@@ -151,83 +139,66 @@ export class AuthService {
         "AUTH_REGISTER_MISSING_FIELDS"
       );
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser)
+    // Check existing email
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing)
       throw new ApiError(
         409,
         "Email already registered",
         "AUTH_EMAIL_ALREADY_REGISTERED"
       );
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
+    // Hash password and create user
+    const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: {
-        fullName,
-        email,
-        password: hashedPassword,
-        role,
-        phoneNumber,
-      },
+      data: { fullName, email, password: hashed, role, phoneNumber },
     });
 
-    // Create session for new user
-    const session = await prisma.session.create({
-      data: {
-        userId: user.id,
-        deviceId,
-        userAgent,
-        ipAddress,
-      },
+    // Create Redis session
+    const sessionId = randomUUID();
+    await createSession(sessionId, {
+      userId: user.id,
+      deviceId,
+      userAgent,
+      ipAddress,
+      createdAt: Date.now(),
+      lastUsedAt: Date.now(),
     });
 
-    // Generate and create refresh token linked to session
+    // Create refresh token
     const refreshToken = generateRefreshToken();
-
     await prisma.refreshToken.create({
       data: {
-        sessionId: session.id,
+        sessionId,
         tokenHash: hashToken(refreshToken),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
-    const safeUser = {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      role: user.role,
-    };
-
     return {
-      user: safeUser,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+      },
       accessToken: signAccessToken(user),
       refreshToken,
     };
   }
 
   // ---------------- REFRESH TOKEN ----------------
-  async refreshToken(
-    oldRefreshToken: string,
-    deviceId: string
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async refreshToken(oldRefreshToken: string, deviceId: string) {
     const tokenHash = hashToken(oldRefreshToken);
 
     return await prisma.$transaction(async (tx) => {
-      // Find token in DB with its session
       const storedToken = await tx.refreshToken.findUnique({
         where: { tokenHash },
-        include: { session: true },
       });
-
-      // TOKEN REUSE DETECTED
       if (!storedToken || storedToken.revokedAt) {
-        // If this token was revoked, possible token reuse attack: revoke all sessions for this user if known!
-        if (storedToken?.session) {
-          await tx.session.updateMany({
-            where: { userId: storedToken.session.userId },
-            data: { revokedAt: new Date() },
-          });
+        if (storedToken) {
+          const sess = await getSession(storedToken.sessionId);
+          if (sess) await revokeSession(storedToken.sessionId, sess.userId);
         }
         throw new ApiError(
           401,
@@ -236,34 +207,20 @@ export class AuthService {
         );
       }
 
-      // Check if token is expired
-      if (storedToken.expiresAt < new Date()) {
-        throw new ApiError(
-          401,
-          "Invalid refresh token",
-          "AUTH_INVALID_REFRESH_TOKEN"
-        );
-      }
-
-      // Check if session is revoked
-      if (storedToken.session.revokedAt) {
-        throw new ApiError(401, "Session revoked", "AUTH_SESSION_REVOKED");
-      }
-
-      // Check device mismatch
-      if (storedToken.session.deviceId !== deviceId) {
+      const session = await getSession(storedToken.sessionId);
+      if (!session)
+        throw new ApiError(401, "Session expired", "AUTH_SESSION_EXPIRED");
+      if (session.deviceId !== deviceId)
         throw new ApiError(403, "Device mismatch", "AUTH_DEVICE_MISMATCH");
-      }
 
-      // Update session lastUsedAt
-      await tx.session.update({
-        where: { id: storedToken.sessionId },
-        data: { lastUsedAt: new Date() },
+      // Update lastUsedAt
+      await createSession(storedToken.sessionId, {
+        ...session,
+        lastUsedAt: Date.now(),
       });
 
-      // Generate new refresh token
+      // Rotate refresh token
       const newRefreshToken = generateRefreshToken();
-
       const newToken = await tx.refreshToken.create({
         data: {
           sessionId: storedToken.sessionId,
@@ -272,25 +229,19 @@ export class AuthService {
         },
       });
 
-      // Revoke OLD token and link → NEW token
       await tx.refreshToken.update({
         where: { id: storedToken.id },
-        data: {
-          revokedAt: new Date(),
-          replacedById: newToken.id,
-        },
+        data: { revokedAt: new Date(), replacedById: newToken.id },
       });
 
-      // Generate new access token
-      const user = await tx.user.findUnique({
-        where: { id: storedToken.session.userId },
-      });
+      const user = await tx.user.findUnique({ where: { id: session.userId } });
       if (!user)
         throw new ApiError(404, "User not found", "AUTH_USER_NOT_FOUND");
 
-      const accessToken = signAccessToken(user);
-
-      return { accessToken, refreshToken: newRefreshToken };
+      return {
+        accessToken: signAccessToken(user),
+        refreshToken: newRefreshToken,
+      };
     });
   }
 
@@ -314,62 +265,30 @@ export class AuthService {
   }
 
   // ---------------- LOGOUT ----------------
-  async logout(refreshToken: string): Promise<void> {
+  async logout(refreshToken: string) {
     const tokenHash = hashToken(refreshToken);
-
     const storedToken = await prisma.refreshToken.findUnique({
       where: { tokenHash },
-      include: { session: true },
     });
+    if (!storedToken) return;
 
-    if (storedToken) {
-      // Revoke the session and all its refresh tokens
-      await prisma.$transaction(async (tx) => {
-        await tx.session.update({
-          where: { id: storedToken.sessionId },
-          data: { revokedAt: new Date() },
-        });
+    const session = await getSession(storedToken.sessionId);
+    if (session) await revokeSession(storedToken.sessionId, session.userId);
 
-        await tx.refreshToken.updateMany({
-          where: { sessionId: storedToken.sessionId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-      });
-    }
+    await prisma.refreshToken.updateMany({
+      where: { sessionId: storedToken.sessionId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
-  // ---------------- LOGOUT ALL DEVICE ----------------
+  // ---------------- LOGOUT ALL DEVICES ----------------
   async logoutAll(userId: string) {
-    await prisma.$transaction(async (tx) => {
-      // get all ACTIVE session IDs
-      const activeSessions = await tx.session.findMany({
-        where: {
-          userId,
-          revokedAt: null,
-        },
-        select: { id: true },
-      });
+    const sessions = await getUserSessions(userId);
+    await Promise.all(sessions.map((sId) => revokeSession(sId, userId)));
 
-      const activeSessionIds = activeSessions.map((s) => s.id);
-
-      if (activeSessionIds.length > 0) {
-        //Revoke all refresh tokens for ACTIVE sessions
-        await tx.refreshToken.updateMany({
-          where: {
-            sessionId: { in: activeSessionIds },
-            revokedAt: null,
-          },
-          data: { revokedAt: new Date() },
-        });
-
-        // Revoke all ACTIVE sessions
-        await tx.session.updateMany({
-          where: {
-            id: { in: activeSessionIds },
-          },
-          data: { revokedAt: new Date() },
-        });
-      }
+    await prisma.refreshToken.updateMany({
+      where: { sessionId: { in: sessions }, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
   }
 }

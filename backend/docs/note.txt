@@ -7,6 +7,20 @@ Dcoker Redis cli command:
      -View Audit log rate limit command
       LRANGE rate_limit_hits 0 9
 
+     -Redis session command
+      GET session:2d688679-128b-4d74-a1dd-c96b1a15af77
+      SMEMBERS user_sessions:2f1f9010-8469-4a1c-8e44-532bb35f5803
+
+      | Command                      | Purpose                                |
+      | ---------------------------- | -------------------------------------- |
+      | `TTL <key>`                  | Show remaining time in seconds         |
+      | `PTTL <key>`                 | Show remaining time in milliseconds    |
+      | `EXPIRE <key> <seconds>`     | Set expiration in seconds              |
+      | `PEXPIRE <key> <ms>`         | Set expiration in milliseconds         |
+      | `EXPIREAT <key> <timestamp>` | Set expiration at a specific Unix time |
+      | `DEL <key>`                  | Delete the key immediately             |
+
+
       HGETALL bull:audit:1 
       GET bull:audit:id 
       GET bull:audit:stalled-check 

@@ -1,6 +1,7 @@
 import { logger } from "#config/logger.js";
 import { bullRedis } from "#config/redis.bullmq.js";
 import { Worker } from "bullmq";
+import type { ConnectionOptions } from "bullmq";
 
 const auditWorker = new Worker(
   "audit",
@@ -14,7 +15,7 @@ const auditWorker = new Worker(
       throw err;
     }
   },
-  { connection: bullRedis }
+  { connection: bullRedis as unknown as ConnectionOptions }
 );
 
 auditWorker.on("failed", (job, err) => {
