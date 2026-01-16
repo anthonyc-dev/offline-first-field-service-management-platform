@@ -1,6 +1,9 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
+import { loginFailed, loginSuccess } from "./auth.events.js";
+import { ApiError } from "#shared/errors/ApiError.js";
+import { prisma } from "#config/db.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -45,16 +48,54 @@ export class AuthController {
       const result = await authService.login({
         email,
         password,
-        deviceId,
+        deviceId: deviceId ?? "unknown",
         userAgent,
         ipAddress,
       });
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
+      await loginSuccess({
+        actorId: result.user.id,
+        actorRole: "user",
+        userId: result.user.id,
+        email: result.user.email,
+        ip: req.context.ipAddress ?? "unknown",
+        userAgent,
+        deviceFingerprint: deviceId ?? "unknown",
+        requestId: req.requestId ?? "unknown",
+        timestamp: Date.now(),
+      });
+
       res.status(200).json({ user: result.user });
     } catch (error) {
       console.error(error);
+
+      let actorId: string | "unknown" = "unknown";
+      let reason = "UNKNOWN_ERROR";
+
+      const user = await prisma.user.findUnique({
+        where: {
+          email: req.body.email,
+        },
+      });
+
+      if (user) actorId = user.id;
+
+      if (error instanceof ApiError) {
+        reason = error.code;
+      }
+      await loginFailed({
+        actorId,
+        actorRole: "system",
+        email: req.body.email,
+        reason,
+        ip: req.context.ipAddress ?? "unknown",
+        userAgent: req.context.userAgent,
+        deviceFingerprint: req.context.deviceId ?? "unknown",
+        requestId: req.requestId ?? "unknown",
+        timestamp: Date.now(),
+      });
       res.status(401).json({ error: "Invalid credentials" });
     }
   }
@@ -69,7 +110,7 @@ export class AuthController {
         email,
         password,
         phoneNumber,
-        deviceId,
+        deviceId: deviceId ?? "unknown",
         userAgent,
         ipAddress,
       };
@@ -94,7 +135,10 @@ export class AuthController {
 
       const { deviceId } = req.context;
 
-      const result = await authService.refreshToken(refreshToken, deviceId);
+      const result = await authService.refreshToken(
+        refreshToken,
+        deviceId ?? "unknown"
+      );
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 

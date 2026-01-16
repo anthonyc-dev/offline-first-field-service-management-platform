@@ -2,15 +2,21 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Copy only package files first (better layer caching)
 COPY package*.json ./
 RUN npm config set registry https://registry.npmjs.org/ && npm install
 RUN apk add --no-cache postgresql-client
 
-COPY . .
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+USER nodejs
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev"]
+# Use nodemon for hot reload
+CMD ["npx", "nodemon", "--exec", "npm", "run", "dev"]
 
 
 # docker-compose -f docker-compose.dev.yml up --build

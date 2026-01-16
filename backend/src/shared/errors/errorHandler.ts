@@ -1,7 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "./ApiError.js";
 import { ValidationError } from "./validationError.js";
-import { recordError } from "./metrics/errorMetrics.js";
+import { errorMetrics, recordError } from "./metrics/errorMetrics.js";
+import { logger } from "#config/logger.js";
 
 export const errorHandler = (
   err: Error,
@@ -24,7 +25,7 @@ export const errorHandler = (
     statusCode = err.statusCode;
 
     // metrics
-    recordError(statusCode);
+    recordError(err.statusCode);
 
     // perational logging (WARN)
     console.warn({
@@ -37,6 +38,7 @@ export const errorHandler = (
       method: req.method,
     });
 
+    logger.warn({ err, requestId: req.id });
     return res.status(statusCode).json({
       ...response,
       message: err.message,
@@ -63,6 +65,7 @@ export const errorHandler = (
       method: req.method,
     });
 
+    logger.warn({ err, requestId: req.id });
     return res.status(statusCode).json({
       ...response,
       message: err.message,

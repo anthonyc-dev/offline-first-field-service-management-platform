@@ -21,7 +21,6 @@
 
 # volumes:
 #   pg_test_data_docker:
-version: "3.9"
 
 services:
   # ------------------ Postgres Test DB ------------------

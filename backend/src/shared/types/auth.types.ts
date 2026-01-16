@@ -28,7 +28,7 @@ export interface RegisterInput {
 }
 
 // Auth response type
-interface PublicUser {
+export interface PublicUser {
   id: string;
   email: string;
   fullName: string;
@@ -45,7 +45,7 @@ export interface AuthResponse {
 export interface RequestContext {
   ipAddress: string;
   userAgent: string;
-  deviceId: string;
+  deviceId?: string;
 }
 
 export interface AuthPayload {

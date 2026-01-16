@@ -1,0 +1,38 @@
+groups:
+  - name: nodejs_alerts
+    rules:
+      - alert: HighCPUUsage
+        expr: process_cpu_seconds_total > 80
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High CPU Usage"
+          description: "CPU usage is above 80% for more than 2 minutes."
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 500000000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Memory Usage"
+          description: "Memory usage is above 500MB."
+
+      - alert: EventLoopLagHigh
+        expr: nodejs_eventloop_lag_seconds > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node.js Event Loop Lag"
+          description: "Event loop lag > 50ms for more than 2 minutes."
+
+      - alert: LoginErrorHigh
+        expr: rate(http_requests_total{path="/api/auth/login",status="429"}[5m]) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High Login Error Rate"
+          description: "More than 0.1 login errors per second (429 status) on /api/auth/login endpoint in the last 5 minutes."

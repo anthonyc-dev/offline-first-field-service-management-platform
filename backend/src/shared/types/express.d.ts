@@ -9,13 +9,15 @@ declare global {
         sub: string;
         role: Roles;
         exp: Date;
+        id: string;
       } & JsonWebTokenPayload;
       context?: {
         ipAddress?: string;
-        userAgent: string;
-        deviceId: string;
+        userAgent?: string;
+        deviceId?: string;
       };
       requestId?: string;
+      id?: any;
     }
   }
 }
