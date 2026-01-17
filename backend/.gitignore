@@ -1,4 +1,89 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
 .env
-/node_modules
-/dist
-/src/generated/prisma
+.env.*
+!.env.example
+!.env.template
+
+# Prisma generated files
+src/generated/prisma/
+*.db
+*.db-journal
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+pino-*.log
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# IDE and editors
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+.temp/
+
+# Docker override files (local development overrides)
+docker-compose.override.yml
+
+# Monitoring and metrics
+.prometheus/
+.grafana/
+
+# Misc
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+.stylelintcache
+*.tgz
+
+# TypeScript incremental compilation
+*.tsbuildinfo

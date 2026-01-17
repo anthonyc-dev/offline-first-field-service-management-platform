@@ -1,7 +1,98 @@
-node_modules
-npm-debug.log
-.env
-.git
-.gitignore
-dist
+# Dependencies - will be installed in Docker (excludes from build context, reducing size)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
+# Git files - not needed in Docker
+.git/
+.gitignore
+.gitattributes
+
+# Environment files - should be passed via env_file or environment variables
+.env
+.env.*
+!.env.example
+
+# Build outputs - will be built inside Docker
+dist/
+build/
+*.tsbuildinfo
+
+# Test files and coverage - not needed in production Docker image
+__tests__/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
+.nyc_output/
+jest.config.*
+*.lcov
+test/
+
+# Dev-only configuration files
+nodemon.json
+scripts/
+# Note: tsconfig.json and prisma.config.ts are needed for builds, so keep them
+
+# Documentation - not needed in Docker image
+README.md
+docs/
+*.md
+!docs/.gitkeep
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# CI/CD - not needed in Docker
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+
+# Logs - will be generated at runtime
+logs/
+*.log
+pino-*.log
+
+# Temporary and cache files
+*.tmp
+*.temp
+.cache/
+.temp/
+*.pid
+*.seed
+*.pid.lock
+.npm
+.eslintcache
+.stylelintcache
+
+# Docker override files - not needed in build context
+docker-compose.override.yml
+
+# Monitoring configs - if using external monitoring
+monitoring/
+.prometheus/
+.grafana/
+
+# Misc
+*.tgz
+*.tar.gz
