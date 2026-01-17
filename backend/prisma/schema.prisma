@@ -50,6 +50,7 @@ model User {
 model RefreshToken {
   id            String   @id @default(uuid())
   sessionId     String
+  userId        String
   tokenHash     String   @unique
   expiresAt     DateTime
   revokedAt     DateTime?

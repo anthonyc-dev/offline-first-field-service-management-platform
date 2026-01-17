@@ -133,11 +133,13 @@ export class AuthController {
         return;
       }
 
-      const { deviceId } = req.context;
+      const { deviceId, ipAddress, userAgent } = req.context;
 
       const result = await authService.refreshToken(
         refreshToken,
-        deviceId ?? "unknown"
+        deviceId ?? "unknown",
+        ipAddress ?? "unknown",
+        userAgent ?? "unknown"
       );
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);

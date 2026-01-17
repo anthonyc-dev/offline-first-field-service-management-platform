@@ -30,7 +30,7 @@ export class AuthService {
     userAgent,
     ipAddress,
   }: LoginInput): Promise<AuthResponse> {
-    // 1️⃣ Find user in DB
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user)
       throw new ApiError(
@@ -39,7 +39,7 @@ export class AuthService {
         "AUTH_INVALID_CREDENTIALS"
       );
 
-    // 2️⃣ Verify password
+ 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid)
       throw new ApiError(
@@ -48,11 +48,9 @@ export class AuthService {
         "AUTH_INVALID_CREDENTIALS"
       );
 
-    console.log("Login attempt for email:", email);
-    console.log("User found:", user);
     if (user) console.log("Stored hash:", user.password);
 
-    // 3️⃣ Handle Redis sessions
+    // Handle Redis sessions
     const sessions = await getUserSessions(user.id);
 
     // Revoke oldest session if exceeding MAX_SESSIONS
@@ -68,7 +66,21 @@ export class AuthService {
         }
       }
 
-      if (oldestId) await revokeSession(oldestId, user.id);
+      if (oldestId) {
+        // Revoke Redis session
+        await revokeSession(oldestId, user.id);
+    
+        // Revoke ALL refresh tokens tied to that session
+        await prisma.refreshToken.updateMany({
+          where: {
+            sessionId: oldestId,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+          },
+        });
+      }
     }
 
     // Revoke session for same device
@@ -85,7 +97,7 @@ export class AuthService {
       }
     }
 
-    // 4️⃣ Create new Redis session
+   
     const sessionId = randomUUID();
     await createSession(sessionId, {
       userId: user.id,
@@ -96,17 +108,18 @@ export class AuthService {
       lastUsedAt: Date.now(),
     });
 
-    // 5️⃣ Create refresh token in DB
+   
     const refreshToken = generateRefreshToken();
     await prisma.refreshToken.create({
       data: {
         sessionId,
+        userId: user.id,
         tokenHash: hashToken(refreshToken),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
 
-    // 6️⃣ Return auth response
+   
     return {
       user: {
         id: user.id,
@@ -139,7 +152,7 @@ export class AuthService {
         "AUTH_REGISTER_MISSING_FIELDS"
       );
 
-    // Check existing email
+ 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing)
       throw new ApiError(
@@ -148,13 +161,13 @@ export class AuthService {
         "AUTH_EMAIL_ALREADY_REGISTERED"
       );
 
-    // Hash password and create user
+  
     const hashed = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: { fullName, email, password: hashed, role, phoneNumber },
     });
 
-    // Create Redis session
+  
     const sessionId = randomUUID();
     await createSession(sessionId, {
       userId: user.id,
@@ -165,11 +178,12 @@ export class AuthService {
       lastUsedAt: Date.now(),
     });
 
-    // Create refresh token
+ 
     const refreshToken = generateRefreshToken();
     await prisma.refreshToken.create({
       data: {
         sessionId,
+        userId: user.id,
         tokenHash: hashToken(refreshToken),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -188,15 +202,19 @@ export class AuthService {
   }
 
   // ---------------- REFRESH TOKEN ----------------
-  async refreshToken(oldRefreshToken: string, deviceId: string) {
+  async refreshToken(oldRefreshToken: string, deviceId: string, ipAddress: string, userAgent: string) {
     const tokenHash = hashToken(oldRefreshToken);
-
+  
     return await prisma.$transaction(async (tx) => {
+      // Find the stored refresh token
       const storedToken = await tx.refreshToken.findUnique({
         where: { tokenHash },
       });
+  
       if (!storedToken || storedToken.revokedAt) {
+        // Refresh token invalid or reused
         if (storedToken) {
+          // Try to revoke session if exists
           const sess = await getSession(storedToken.sessionId);
           if (sess) await revokeSession(storedToken.sessionId, sess.userId);
         }
@@ -206,45 +224,70 @@ export class AuthService {
           "AUTH_REFRESH_TOKEN_REUSE"
         );
       }
-
-      const session = await getSession(storedToken.sessionId);
-      if (!session)
-        throw new ApiError(401, "Session expired", "AUTH_SESSION_EXPIRED");
-      if (session.deviceId !== deviceId)
+  
+  
+      let session = await getSession(storedToken.sessionId);
+  
+      if (!session) {
+        // session expired in Redis, but refresh token is valid
+        // Recreate session from DB info
+        const user = await tx.user.findUnique({ where: { id: storedToken.userId } });
+        if (!user) {
+          throw new ApiError(404, "User not found", "AUTH_USER_NOT_FOUND");
+        }
+  
+   
+        session = await createSession(storedToken.sessionId, {
+          sessionId: storedToken.sessionId, 
+          userId: storedToken.userId,
+          deviceId: session?.deviceId || deviceId,
+          userAgent: session?.userAgent || userAgent, 
+          ipAddress: session?.ipAddress || ipAddress,
+          createdAt: session?.createdAt || Date.now(),
+          lastUsedAt: Date.now(),
+        });
+      }
+  
+   
+      if (session.deviceId !== deviceId) {
         throw new ApiError(403, "Device mismatch", "AUTH_DEVICE_MISMATCH");
-
+      }
+  
       // Update lastUsedAt
       await createSession(storedToken.sessionId, {
         ...session,
         lastUsedAt: Date.now(),
       });
-
+  
       // Rotate refresh token
       const newRefreshToken = generateRefreshToken();
       const newToken = await tx.refreshToken.create({
         data: {
           sessionId: storedToken.sessionId,
+          userId: storedToken.userId,
           tokenHash: hashToken(newRefreshToken),
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         },
       });
-
+  
       await tx.refreshToken.update({
         where: { id: storedToken.id },
         data: { revokedAt: new Date(), replacedById: newToken.id },
       });
-
+  
+   
       const user = await tx.user.findUnique({ where: { id: session.userId } });
-      if (!user)
+      if (!user) {
         throw new ApiError(404, "User not found", "AUTH_USER_NOT_FOUND");
-
+      }
+  
       return {
         accessToken: signAccessToken(user),
         refreshToken: newRefreshToken,
       };
     });
   }
-
+  
   //-----------------Protection Route------------------
   getProfileFromRequest(req: {
     user?: { sub: string; role: string; exp: Date };
