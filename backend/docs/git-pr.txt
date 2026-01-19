@@ -24,3 +24,21 @@ $ git push origin master
 $ git branch -d feature/events-logs-metrics
 
 $ git push origin --delete feature/events-logs-metrics
+
+#---------------------------------------------------#
+# start work
+git checkout develop
+git pull origin develop
+git checkout -b feature/x
+
+# finish work
+git rebase origin/develop
+git checkout develop
+git merge --ff-only feature/x
+git push origin develop
+
+# release
+git checkout master
+git merge --no-ff develop
+git push origin master
+
