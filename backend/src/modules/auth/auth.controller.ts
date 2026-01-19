@@ -1,9 +1,10 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
-import { loginFailed, loginSuccess } from "./auth.events.js";
+import { loginFailed, loginSuccess, refreshTokenReuseDetected } from "./auth.events.js";
 import { ApiError } from "#shared/errors/ApiError.js";
 import { prisma } from "#config/db.js";
+import { hashToken } from "../../shared/utils/tokens.js";
 
 const isProduction = config.nodeEnv === "production";
 
@@ -147,6 +148,43 @@ export class AuthController {
       res.status(200).json({ message: "Tokens refreshed successfully" });
     } catch (error) {
       console.error(error);
+
+      // Handle refresh token reuse detection
+      if (error instanceof ApiError && error.code === "AUTH_REFRESH_TOKEN_REUSE") {
+        const refreshToken = req.cookies?.refreshToken;
+        if (refreshToken) {
+          const tokenHash = hashToken(refreshToken);
+
+          // Find the stored token to get userId
+          const storedToken = await prisma.refreshToken.findUnique({
+            where: { tokenHash },
+          });
+
+          if (storedToken) {
+            const user = await prisma.user.findUnique({
+              where: { id: storedToken.userId },
+            });
+
+            await refreshTokenReuseDetected({
+              actorId: storedToken.userId,
+              actorRole: "system",
+              userId: storedToken.userId,
+              email: user?.email ?? "unknown",
+              tokenHash,
+              sessionId: storedToken.sessionId,
+              reason: "REFRESH_TOKEN_REUSE_DETECTED",
+              actionTaken: "REVOKE_SESSION_ONLY",
+              severity: "CRITICAL",
+              ip: req.context.ipAddress ?? "unknown",
+              userAgent: req.context.userAgent ?? "unknown",
+              deviceFingerprint: req.context.deviceId ?? "unknown",
+              requestId: req.requestId ?? "unknown",
+              timestamp: Date.now(),
+            });
+          }
+        }
+      }
+
       res.status(401).json({ error: "Invalid refresh token" });
     }
   }

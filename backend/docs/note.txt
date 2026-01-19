@@ -27,5 +27,22 @@ Dcoker Redis cli command:
       HGETALL bull:audit:meta
       XREAD COUNT 10 STREAMS bull:audit:events 0
 
+//TODO:✅
 Next to do for Event / audit log
   - Elasticsearch/OpenSearch for searchable audit logs + Object Storage (S3) for immutable long-term audit history
+
+//TODO:✅
+Senior recommendation (secure default):
+Revoke all refresh tokens for that user and all active sessions in Redis, force re-login, log and alert, then investigate the breach. Treat refresh token reuse as a full compromise.
+
+//TODO:✅
+NGINX
+  Reverse proxy + load balancing
+  Rate limiting (global + per-IP)
+  Bot & abuse mitigation
+  IP allow/deny
+  Admin access via private network / VPN only
+  Security hardening
+  Attack surface reduction
+  Structured logging
+  Ready to drop into a real server

@@ -54,3 +54,19 @@ export async function getUserSessions(userId: string) {
     return [];
   }
 }
+
+export async function acquireUserLock(userId: string, ttlMs = 3000) {
+  const client = await getRedisClient();
+  const key = `lock:user:${userId}`;
+  const ok = await client.set(key, "1", {
+    NX: true,
+    PX: ttlMs,
+  });
+  return ok === "OK";
+}
+
+export async function releaseUserLock(userId: string) {
+  const client = await getRedisClient();
+  await client.del(`lock:user:${userId}`);
+}
+

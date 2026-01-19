@@ -51,6 +51,9 @@ model RefreshToken {
   id            String   @id @default(uuid())
   sessionId     String
   userId        String
+  deviceId      String       
+  ipAddress     String      
+  userAgent     String       
   tokenHash     String   @unique
   expiresAt     DateTime
   revokedAt     DateTime?

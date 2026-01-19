@@ -16,6 +16,8 @@ import {
   getSession,
   getUserSessions,
   revokeSession,
+  acquireUserLock,
+  releaseUserLock,
 } from "#shared/session/redisSession.js";
 import { randomUUID } from "crypto";
 
@@ -30,7 +32,7 @@ export class AuthService {
     userAgent,
     ipAddress,
   }: LoginInput): Promise<AuthResponse> {
-
+    // Step 1: Validate credentials (read-only, outside transaction)
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user)
       throw new ApiError(
@@ -39,7 +41,6 @@ export class AuthService {
         "AUTH_INVALID_CREDENTIALS"
       );
 
- 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid)
       throw new ApiError(
@@ -48,88 +49,190 @@ export class AuthService {
         "AUTH_INVALID_CREDENTIALS"
       );
 
-    if (user) console.log("Stored hash:", user.password);
+    // Step 2: Acquire distributed lock to prevent concurrent logins
+    const lockAcquired = await acquireUserLock(user.id, 5000);
+    if (!lockAcquired) {
+      throw new ApiError(
+        429,
+        "Too many login attempts. Please try again.",
+        "AUTH_CONCURRENT_LOGIN"
+      );
+    }
 
-    // Handle Redis sessions
-    const sessions = await getUserSessions(user.id);
+    try {
+      // Step 3: Handle Redis sessions (outside transaction, but before DB operations)
+      const allSessionIds = await getUserSessions(user.id);
 
-    // Revoke oldest session if exceeding MAX_SESSIONS
-    if (sessions.length >= MAX_SESSIONS) {
-      let oldestId: string | null = null;
-      let oldestTime = Date.now();
-
-      for (const sId of sessions) {
+      // Filter out expired sessions and clean up Redis set
+      // Only count valid (non-expired) sessions toward MAX_SESSIONS
+      const validSessions: string[] = [];
+      const expiredSessionIds: string[] = [];
+      
+      for (const sId of allSessionIds) {
         const sess = await getSession(sId);
-        if (sess && sess.createdAt < oldestTime) {
-          oldestTime = sess.createdAt;
-          oldestId = sId;
+        if (sess) {
+          validSessions.push(sId);
+        } else {
+          expiredSessionIds.push(sId);
         }
       }
 
-      if (oldestId) {
-        // Revoke Redis session
-        await revokeSession(oldestId, user.id);
-    
-        // Revoke ALL refresh tokens tied to that session
-        await prisma.refreshToken.updateMany({
-          where: {
-            sessionId: oldestId,
-            revokedAt: null,
-          },
-          data: {
-            revokedAt: new Date(),
-          },
-        });
-      }
-    }
-
-    // Revoke session for same device
-    for (const sId of sessions) {
-      const sess = await getSession(sId);
-      if (sess?.deviceId === deviceId) {
+      // Clean up expired sessions from Redis
+      for (const sId of expiredSessionIds) {
         await revokeSession(sId, user.id);
-
-        // Revoke associated refresh tokens in DB
-        await prisma.refreshToken.updateMany({
-          where: { sessionId: sId, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
       }
+
+      // Find oldest session for revocation if needed
+      let oldestSessionId: string | null = null;
+      if (validSessions.length >= MAX_SESSIONS) {
+        let oldestTime = Date.now();
+        for (const sId of validSessions) {
+          const sess = await getSession(sId);
+          if (sess && sess.createdAt < oldestTime) {
+            oldestTime = sess.createdAt;
+            oldestSessionId = sId;
+          }
+        }
+      }
+
+      // Collect session IDs to revoke (same device)
+      const sameDeviceSessionIds: string[] = [];
+      for (const sId of validSessions) {
+        const sess = await getSession(sId);
+        if (sess?.deviceId === deviceId) {
+          sameDeviceSessionIds.push(sId);
+        }
+      }
+
+      // Step 4: Execute all database operations in a transaction
+      const sessionId = randomUUID();
+      const refreshToken = generateRefreshToken();
+      const refreshTokenExpiresAt = new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000
+      );
+
+      const result = await prisma.$transaction(
+        async (tx) => {
+          // Re-fetch user within transaction for consistency
+          const userInTx = await tx.user.findUnique({ where: { id: user.id } });
+          if (!userInTx) {
+            throw new ApiError(404, "User not found", "AUTH_USER_NOT_FOUND");
+          }
+
+          const now = new Date();
+
+          // Revoke oldest session's refresh tokens if exceeding MAX_SESSIONS
+          if (oldestSessionId) {
+            await tx.refreshToken.updateMany({
+              where: {
+                sessionId: oldestSessionId,
+                userId: user.id,
+                revokedAt: null,
+              },
+              data: { revokedAt: now },
+            });
+          }
+
+          // Revoke refresh tokens for same device sessions
+          if (sameDeviceSessionIds.length > 0) {
+            await tx.refreshToken.updateMany({
+              where: {
+                sessionId: { in: sameDeviceSessionIds },
+                userId: user.id,
+                revokedAt: null,
+              },
+              data: { revokedAt: now },
+            });
+          }
+
+          // Revoke active refresh tokens for same device/IP even if Redis session expired
+          // This handles the case where Redis session expired but refresh token is still active
+          await tx.refreshToken.updateMany({
+            where: {
+              userId: user.id,
+              deviceId: deviceId,
+              ipAddress: ipAddress,
+              revokedAt: null,
+              expiresAt: { gt: now },
+            },
+            data: { revokedAt: now },
+          });
+
+          // Create new refresh token
+          await tx.refreshToken.create({
+            data: {
+              sessionId,
+              userId: user.id,
+              deviceId,
+              userAgent,
+              ipAddress,
+              tokenHash: hashToken(refreshToken),
+              expiresAt: refreshTokenExpiresAt,
+            },
+          });
+
+          return { user: userInTx };
+        },
+        {
+          maxWait: 5000, // Maximum time to wait for transaction
+          timeout: 10000, // Maximum time transaction can run
+        }
+      );
+
+      // Step 5: Handle Redis operations after successful DB transaction
+      // Revoke Redis sessions for oldest and same device
+      const redisSessionIdsToRevoke = new Set<string>();
+      if (oldestSessionId) {
+        redisSessionIdsToRevoke.add(oldestSessionId);
+      }
+      sameDeviceSessionIds.forEach((id) => redisSessionIdsToRevoke.add(id));
+
+      // Also revoke sessions for tokens we just revoked in DB
+      const revokedTokens = await prisma.refreshToken.findMany({
+        where: {
+          userId: user.id,
+          deviceId: deviceId,
+          ipAddress: ipAddress,
+          revokedAt: { not: null },
+        },
+        select: { sessionId: true },
+        distinct: ["sessionId"],
+      });
+
+      revokedTokens.forEach((token) => {
+        redisSessionIdsToRevoke.add(token.sessionId);
+      });
+
+      // Revoke Redis sessions
+      for (const sId of redisSessionIdsToRevoke) {
+        await revokeSession(sId, user.id);
+      }
+
+      // Create new Redis session
+      await createSession(sessionId, {
+        userId: result.user.id,
+        deviceId,
+        userAgent,
+        ipAddress,
+        createdAt: Date.now(),
+        lastUsedAt: Date.now(),
+      });
+
+      // Step 6: Return response
+      return {
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          fullName: result.user.fullName,
+          role: result.user.role,
+        },
+        accessToken: signAccessToken(result.user),
+        refreshToken,
+      };
+    } finally {
+      // Always release the lock
+      await releaseUserLock(user.id);
     }
-
-   
-    const sessionId = randomUUID();
-    await createSession(sessionId, {
-      userId: user.id,
-      deviceId,
-      userAgent,
-      ipAddress,
-      createdAt: Date.now(),
-      lastUsedAt: Date.now(),
-    });
-
-   
-    const refreshToken = generateRefreshToken();
-    await prisma.refreshToken.create({
-      data: {
-        sessionId,
-        userId: user.id,
-        tokenHash: hashToken(refreshToken),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      },
-    });
-
-   
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        role: user.role,
-      },
-      accessToken: signAccessToken(user),
-      refreshToken,
-    };
   }
 
   // ---------------- REGISTER ----------------
@@ -184,6 +287,9 @@ export class AuthService {
       data: {
         sessionId,
         userId: user.id,
+        deviceId,
+        userAgent,
+        ipAddress,
         tokenHash: hashToken(refreshToken),
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -265,6 +371,9 @@ export class AuthService {
         data: {
           sessionId: storedToken.sessionId,
           userId: storedToken.userId,
+          deviceId,
+          userAgent,
+          ipAddress,
           tokenHash: hashToken(newRefreshToken),
           expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
         },
