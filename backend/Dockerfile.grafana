@@ -1,0 +1,23 @@
+# ------------------------------
+# Dockerfile.grafana - Production-ready
+# ------------------------------
+
+# Use a valid Grafana image tag (Alpine-based official image)
+FROM grafana/grafana:10.3.1
+
+# Switch to root to perform cleanup
+USER root
+
+# Optional cleanup to reduce image size and attack surface
+# Use || true to ignore errors if directories don't exist
+RUN rm -rf /usr/share/grafana/public/explore \
+           /usr/share/grafana/public/img \
+           /usr/share/grafana/public/vendor || true
+
+# Switch to non-root user (Grafana base image uses UID 472)
+# The base image already has correct ownership set
+USER 472
+
+# Expose Grafana’s default port
+EXPOSE 3000
+

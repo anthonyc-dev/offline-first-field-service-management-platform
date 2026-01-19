@@ -1,4 +1,5 @@
 services:
+  # ------------------ APP ------------------
   api:
     env_file:
       - .env
@@ -26,7 +27,11 @@ services:
     depends_on:
       - db
       - redis
+    networks:
+      - backend
+      - monitoring   
 
+  # ------------------ REDIS ------------------
   redis:
     image: redis:8-alpine
     ports:
@@ -36,13 +41,17 @@ services:
         "redis-server",
         "--save",
         "",
-        --requirepass anthony,
+        "--requirepass", "anthony",
         "--appendonly",
         "no",
       ]
     volumes:
       - redis_dev_data:/data
+    networks:
+      - backend
+    restart: always
 
+  # ------------------ POSTGRES ------------------
   db:
     image: postgres:16-alpine
     container_name: postgres_dev
@@ -60,8 +69,71 @@ services:
       -c maintenance_work_mem=64MB
       -c max_connections=50
       -c effective_cache_size=256MB
+    restart: always
+    networks:
+      - backend
 
+  # ------------------ MONITORING ------------------
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
+    restart: always
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/rules.yml:/etc/prometheus/rules.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    restart: always
+    depends_on:
+      - alertmanager
+    networks:
+      - monitoring
+
+  grafana:
+    build:
+        context: .
+        dockerfile: Dockerfile.grafana  
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "4000:3000"
+    depends_on:
+      - prometheus
+    restart: always
+    networks:
+      - monitoring
+
+# ---------------- VOLUMES ----------------
 volumes:
   pg_dev_data:
   redis_dev_data:
   node_modules:
+
+# ---------------- NETWORKS ----------------
+networks:
+  backend:
+    driver: bridge
+  monitoring:
+    driver: bridge

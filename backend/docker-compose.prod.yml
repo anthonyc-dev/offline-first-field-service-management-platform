@@ -1,4 +1,7 @@
+version: '3.9'
+
 services:
+  # ------------------ APP ------------------
   api:
     build:
       context: .
@@ -11,23 +14,28 @@ services:
     depends_on:
       - db
       - redis
+    networks:
+      - backend
+      - monitoring   
     restart: always
 
+  # ------------------ REDIS ------------------
   redis:
     image: redis:8-alpine
-    ports:
-      - "6379:6379"
+    container_name: redis_prod
     command:
       [
         "redis-server",
-        "--appendonly",
-        "yes",
-        "--appendfilename",
-        "appendonly.aof",
+        "--appendonly", "yes",
+        "--appendfilename", "appendonly.aof",
       ]
     volumes:
       - redis_data:/data
+    networks:
+      - backend
+    restart: always
 
+  # ------------------ POSTGRES ------------------
   db:
     image: postgres:16-alpine
     container_name: postgres_prod
@@ -35,12 +43,74 @@ services:
       - .env
     volumes:
       - pg_prod_data:/var/lib/postgresql/data
+    networks:
+      - backend
     restart: always
     deploy:
       resources:
         limits:
           memory: 1G
 
+  # ------------------ MONITORING ------------------
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: alertmanager
+    volumes:
+      - ./monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring
+    restart: always
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/rules.yml:/etc/prometheus/rules.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-lifecycle"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - alertmanager
+    networks:
+      - monitoring
+    restart: always
+
+  grafana:
+    build:
+        context: .
+        dockerfile: Dockerfile.grafana
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    ports:
+      - "4000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+    restart: always
+
+# ---------------- VOLUMES ----------------
 volumes:
   pg_prod_data:
   redis_data:
+
+# ---------------- NETWORKS ----------------
+networks:
+  backend:
+    driver: bridge
+  monitoring:
+    driver: bridge
