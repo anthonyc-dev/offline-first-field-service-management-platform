@@ -8,10 +8,9 @@ services:
     container_name: express_prod
     ports:
       - "3000:3000"
+      - "51212:51212"
     env_file:
       - .env
-    environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/offline_first_service"
     depends_on:
       - db
       - redis
@@ -111,8 +110,7 @@ services:
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms2g -Xmx2g 
-      - xpack.security.enabled=true 
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD} 
+      - xpack.security.enabled=false 
     volumes:
       - es_data_prod:/usr/share/elasticsearch/data
       - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/elasticsearch.yml:ro

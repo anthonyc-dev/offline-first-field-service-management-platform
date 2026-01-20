@@ -131,8 +131,8 @@ services:
     container_name: elasticsearch_dev
     environment:
       - discovery.type=single-node
-      - ES_JAVA_OPTS=-Xms1g -Xmx1g # dev can be smaller
-      - xpack.security.enabled=false # simplify dev
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g 
+      - xpack.security.enabled=false 
     volumes:
       - es_data_dev:/usr/share/elasticsearch/data
       - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/elasticsearch/elasticsearch.yml:ro

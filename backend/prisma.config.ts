@@ -11,9 +11,9 @@
 //   },
 // });
 
-import "dotenv/config";  // load .env into process.env
-
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
+import { config } from "dotenv";
+config(); // load .env
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -21,6 +21,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"), // uses loaded env var
+    url: process.env.DATABASE_URL,
   },
 });
