@@ -55,5 +55,4 @@ USER nodejs
 EXPOSE 3000
 
 
-# Default command: can override in dev using docker-compose
 CMD ["node", "dist/server.js"]
