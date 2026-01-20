@@ -1,12 +1,20 @@
 {
   "compilerOptions": {
-    "rootDir": ".",
+    "rootDir": "./src",
     "outDir": "./dist",
-
+    "baseUrl": "./src",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "target": "esnext",
     "types": ["node", "jest"],
+
+    
+        // Map imports field to TypeScript paths
+    "paths": {
+      "#config/*": ["src/config/*"],
+      "#modules/*": ["src/modules/*"], 
+      "#shared/*": ["src/shared/*"]
+    },
 
     "sourceMap": true,
     "declaration": true,
@@ -24,6 +32,6 @@
 
     "esModuleInterop": true
   },
-  "include": ["src", "__tests__", "tests", "types"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "prisma", "*.config.ts"]
 }

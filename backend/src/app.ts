@@ -10,11 +10,10 @@ import { requestContext } from "./shared/middleware/request-context.middleware.j
 import { notFound } from "./shared/errors/notFound.js";
 import { errorHandler } from "./shared/errors/errorHandler.js";
 import { requestId } from "./shared/middleware/requestId.middleware.js";
-import { requestLogger } from "#shared/middleware/requestLogger.middleware.js";
-import { register } from "#config/metrics.js";
-import { logger } from "#config/logger.js";
-import { parseCombinedLog } from "#shared/utils/combinedLog.js";
-import { errorMetrics } from "#shared/errors/metrics/errorMetrics.js";
+import { requestLogger } from "./shared/middleware/requestLogger.middleware.js";
+import { register } from "./config/metrics.js";
+import { logger } from "./config/logger.js";
+import { errorMetrics } from "./shared/errors/metrics/errorMetrics.js";
 
 export function createApp(): Express {
   const app = express();
@@ -44,6 +43,11 @@ export function createApp(): Express {
   //     },
   //   })
   // );
+
+  app.use((req, res, next) => {
+    logger.info({ method: req.method, url: req.url });
+    next();
+  });
 
   // GLOBAL MIDDLEWARE
   app.use(requestContext);

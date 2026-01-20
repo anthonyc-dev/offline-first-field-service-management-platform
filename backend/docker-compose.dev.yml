@@ -5,7 +5,7 @@ services:
       - .env
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: express_dev
     ports:
       - "3000:3000"
@@ -23,7 +23,7 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    command: npm run dev
+    command: npx nodemon --exec npm run dev
     depends_on:
       - db
       - redis
@@ -107,9 +107,7 @@ services:
       - monitoring
 
   grafana:
-    build:
-        context: .
-        dockerfile: Dockerfile.grafana  
+    image: grafana/grafana-oss:latest
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -121,7 +119,38 @@ services:
       - "4000:3000"
     depends_on:
       - prometheus
+    command: >
+      /bin/sh -c "rm -rf /usr/share/grafana/public/explore /usr/share/grafana/public/img /usr/share/grafana/public/vendor || true && /run.sh"
     restart: always
+    networks:
+      - monitoring
+
+  # ---------------- LOGGER ----------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: elasticsearch_dev
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g # dev can be smaller
+      - xpack.security.enabled=false # simplify dev
+    volumes:
+      - es_data_dev:/usr/share/elasticsearch/data
+      - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/elasticsearch/elasticsearch.yml:ro
+    ports:
+      - "9200:9200"
+    networks:
+      - monitoring
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: kibana_dev
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - ./elasticsearch/kibana.yml:/usr/share/kibana/elasticsearch/kibana.yml:ro
+    ports:
+      - "5601:5601"
     networks:
       - monitoring
 
@@ -130,6 +159,7 @@ volumes:
   pg_dev_data:
   redis_dev_data:
   node_modules:
+  es_data_dev:
 
 # ---------------- NETWORKS ----------------
 networks:

@@ -1,7 +1,7 @@
-import { bullRedis } from "#config/redis.bullmq.js";
+import { bullRedis } from "../../config/redis.bullmq.js";
 import { Queue } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
-import { logger } from "#config/logger.js";
+import { logger } from "../../config/logger.js";
 
 export const auditQueue = new Queue("audit", {
   connection: bullRedis as unknown as ConnectionOptions,

@@ -1,5 +1,5 @@
-import { logger } from "#config/logger.js";
-import { httpRequests } from "#shared/metrics/http.metrics.js";
+import { logger } from "../../config/logger.js";
+import { httpRequests } from "../../shared/metrics/http.metrics.js";
 import type { Request, Response, NextFunction } from "express";
 
 export function requestLogger(req: Request, res: Response, next: NextFunction) {

@@ -1,9 +1,9 @@
-import { emitAudit } from "#shared/events/audit.events.js";
+import { emitAudit } from "../../shared/events/audit.events.js";
 import type {
   LoginFailedEvent,
   LoginSuccessEvent,
   RefreshTokenReuseDetectedEvent,
-} from "#shared/types/audit-event.types.js";
+} from "../../shared/types/audit-event.types.js";
 
 export function loginFailed(data: Omit<LoginFailedEvent, "type">) {
   return emitAudit({ ...data, type: "LOGIN_FAILED" });

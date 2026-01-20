@@ -1,4 +1,4 @@
-import { getRedisClient } from "#config/redis.js";
+import { getRedisClient } from "../../config/redis.js";
 
 const SESSION_TTL = 60 * 5; // 60 * 30 = 30  minutes
 

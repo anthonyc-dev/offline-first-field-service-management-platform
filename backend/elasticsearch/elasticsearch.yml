@@ -1,0 +1,22 @@
+# Elasticsearch configuration
+cluster.name: "my-elasticsearch-cluster"
+node.name: "es-node-1"
+
+# Single-node setup
+discovery.type: single-node
+
+# Network
+network.host: 0.0.0.0
+http.port: 9200
+
+# Security
+xpack.security.enabled: true
+
+# Logging
+logger.level: info
+path.logs: /usr/share/elasticsearch/logs
+
+# index lifecycle
+xpack.ilm.enabled: true
+
+transport.host: 0.0.0.0

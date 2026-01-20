@@ -1,0 +1,16 @@
+# Kibana configuration
+server.name: "kibana"
+server.host: "0.0.0.0"
+
+# Elasticsearch connection
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "elastic"
+elasticsearch.password: "${ELASTIC_PASSWORD}"
+
+# Logging
+logging.dest: stdout
+logging.verbose: false
+
+# Enable secure cookies if using HTTPS reverse proxy
+server.ssl.enabled: false  
+

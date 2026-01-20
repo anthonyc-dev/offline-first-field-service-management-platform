@@ -1,6 +1,6 @@
-import type { AuditBase } from "#shared/types/audit-event.types.js";
+import type { AuditBase } from "../../shared/types/audit-event.types.js";
 import { auditQueue } from "./eventBus.js";
-import { logger } from "#config/logger.js";
+import { logger } from "../../config/logger.js";
 
 export async function emitAudit(event: AuditBase) {
   try {

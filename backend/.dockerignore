@@ -34,7 +34,7 @@ test/
 
 # Dev-only configuration files
 nodemon.json
-scripts/
+# scripts/
 # Note: tsconfig.json and prisma.config.ts are needed for builds, so keep them
 
 # Documentation - not needed in Docker image

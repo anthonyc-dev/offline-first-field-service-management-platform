@@ -1,5 +1,5 @@
-import { logger } from "#config/logger.js";
-import { bullRedis } from "#config/redis.bullmq.js";
+import { logger } from "../../config/logger.js";
+import { bullRedis } from "../../config/redis.bullmq.js";
 import { Worker } from "bullmq";
 import type { ConnectionOptions } from "bullmq";
 

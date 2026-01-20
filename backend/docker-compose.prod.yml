@@ -4,12 +4,14 @@ services:
   api:
     build:
       context: .
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
     container_name: express_prod
     ports:
       - "3000:3000"
     env_file:
       - .env
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/offline_first_service"
     depends_on:
       - db
       - redis
@@ -27,12 +29,14 @@ services:
         "redis-server",
         "--appendonly", "yes",
         "--appendfilename", "appendonly.aof",
+        "--requirepass", "${REDIS_PASSWORD}"     
       ]
     volumes:
       - redis_data:/data
     networks:
       - backend
     restart: always
+
 
   # ------------------ POSTGRES ------------------
   db:
@@ -84,9 +88,7 @@ services:
     restart: always
 
   grafana:
-    build:
-        context: .
-        dockerfile: Dockerfile.grafana
+    image: grafana/grafana-oss:latest
     container_name: grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
@@ -102,10 +104,42 @@ services:
       - monitoring
     restart: always
 
+ # ---------------- LOGGER ----------------
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    container_name: elasticsearch_prod
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms2g -Xmx2g 
+      - xpack.security.enabled=true 
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD} 
+    volumes:
+      - es_data_prod:/usr/share/elasticsearch/data
+      - ./elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/elasticsearch.yml:ro
+    ports:
+      - "9200:9200"
+    networks:
+      - monitoring
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.0
+    container_name: kibana_prod
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - ./elasticsearch/kibana.yml:/usr/share/kibana/elasticsearch/kibana.yml:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - monitoring
+
+
 # ---------------- VOLUMES ----------------
 volumes:
   pg_prod_data:
   redis_data:
+  es_data_prod:
 
 # ---------------- NETWORKS ----------------
 networks:

@@ -18,7 +18,7 @@ import {
   revokeSession,
   acquireUserLock,
   releaseUserLock,
-} from "#shared/session/redisSession.js";
+} from "../../shared/session/redisSession.js";
 import { randomUUID } from "crypto";
 
 const MAX_SESSIONS = 5;

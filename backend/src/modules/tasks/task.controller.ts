@@ -14,11 +14,12 @@ export class TaskController {
   async getTaskById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id) {
+      if (!id || Array.isArray(id)) {
         res.status(400).json({ error: "Task ID is required" });
         return;
       }
-      const task = await taskService.getTaskById(id);
+      const taskId: string = id;
+      const task = await taskService.getTaskById(taskId);
       if (!task) {
         res.status(404).json({ error: "Task not found" });
         return;
@@ -42,12 +43,13 @@ export class TaskController {
   async updateTask(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id) {
+      if (!id || Array.isArray(id)) {
         res.status(400).json({ error: "Task ID is required" });
         return;
       }
+      const taskId: string = id;
       const taskData = req.body;
-      const task = await taskService.updateTask(id, taskData);
+      const task = await taskService.updateTask(taskId, taskData);
       if (!task) {
         res.status(404).json({ error: "Task not found" });
         return;
@@ -61,11 +63,12 @@ export class TaskController {
   async deleteTask(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      if (!id) {
+      if (!id || Array.isArray(id)) {
         res.status(400).json({ error: "Task ID is required" });
         return;
       }
-      await taskService.deleteTask(id);
+      const taskId: string = id;
+      await taskService.deleteTask(taskId);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete task" });

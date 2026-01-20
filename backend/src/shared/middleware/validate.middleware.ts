@@ -1,4 +1,4 @@
-import { ValidationError } from "#shared/errors/validationError.js";
+import { ValidationError } from "../../shared/errors/validationError.js";
 import type { Request, Response, NextFunction } from "express";
 import type { ZodSchema } from "zod";
 import { ZodError } from "zod";

@@ -1,6 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
-import { PrismaClient } from "../../src/generated/prisma/client.js";
+import { PrismaClient } from "../../generated/prisma/client.js";
 
 const connectionString = process.env.DATABASE_TEST_URL || "";
 const pool = new Pool({ connectionString });
@@ -19,6 +19,5 @@ afterAll(async () => {
 beforeEach(async () => {
   // Clear tables before each test
   await prisma.refreshToken.deleteMany();
-  await prisma.session.deleteMany();
   await prisma.user.deleteMany();
 });

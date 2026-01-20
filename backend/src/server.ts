@@ -1,5 +1,5 @@
 import { createApp } from "./app.js";
-import "#shared/workers/audit.worker.js";
+import "./shared/workers/audit.worker.js";
 import { config } from "./config/env.js";
 
 async function startServer() {

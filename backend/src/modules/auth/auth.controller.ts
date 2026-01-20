@@ -2,8 +2,8 @@ import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
 import { loginFailed, loginSuccess, refreshTokenReuseDetected } from "./auth.events.js";
-import { ApiError } from "#shared/errors/ApiError.js";
-import { prisma } from "#config/db.js";
+import { ApiError } from "../../shared/errors/ApiError.js";
+import { prisma } from "../../config/db.js";
 import { hashToken } from "../../shared/utils/tokens.js";
 
 const isProduction = config.nodeEnv === "production";

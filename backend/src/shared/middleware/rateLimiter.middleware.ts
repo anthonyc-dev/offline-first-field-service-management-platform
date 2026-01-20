@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { ApiError } from "../errors/ApiError.js";
-import { getRedisClient } from "#config/redis.js";
+import { getRedisClient } from "../../config/redis.js";
 
 export const rateLimiter = ({
   window,

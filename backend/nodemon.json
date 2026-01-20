@@ -2,7 +2,7 @@
   "watch": ["src", "prisma", "prisma/generated"],
   "ext": "ts,js",
   "ignore": ["node_modules", "dist"],
-  "exec": "tsx src/server.ts",
+  "exec": "npx tsx src/server.ts", 
   "verbose": true,
   "delay": "250"
 }
