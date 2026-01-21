@@ -60,7 +60,7 @@ export class AuthService {
     }
 
     try {
-      // Step 3: Handle Redis sessions (outside transaction, but before DB operations)
+      // Handle Redis sessions (outside transaction, but before DB operations)
       const allSessionIds = await getUserSessions(user.id);
 
       // Filter out expired sessions and clean up Redis set
@@ -104,7 +104,7 @@ export class AuthService {
         }
       }
 
-      // Step 4: Execute all database operations in a transaction
+      //  Execute all database operations in a transaction
       const sessionId = randomUUID();
       const refreshToken = generateRefreshToken();
       const refreshTokenExpiresAt = new Date(
@@ -179,7 +179,7 @@ export class AuthService {
         }
       );
 
-      // Step 5: Handle Redis operations after successful DB transaction
+      //  Handle Redis operations after successful DB transaction
       // Revoke Redis sessions for oldest and same device
       const redisSessionIdsToRevoke = new Set<string>();
       if (oldestSessionId) {
@@ -218,7 +218,7 @@ export class AuthService {
         lastUsedAt: Date.now(),
       });
 
-      // Step 6: Return response
+  
       return {
         user: {
           id: result.user.id,

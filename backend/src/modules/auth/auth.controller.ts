@@ -1,7 +1,7 @@
 import { type Request, type Response } from "express";
 import { authService } from "./auth.service.js";
 import { config } from "../../config/env.js";
-import { loginFailed, loginSuccess, refreshTokenReuseDetected } from "./auth.events.js";
+import { AuditLogEvent } from "./auth.events.js";
 import { ApiError } from "../../shared/errors/ApiError.js";
 import { prisma } from "../../config/db.js";
 import { hashToken } from "../../shared/utils/tokens.js";
@@ -56,7 +56,9 @@ export class AuthController {
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
-      await loginSuccess({
+      await AuditLogEvent({
+        type: "LOGIN_SUCCESS",
+        severity: "INFO",
         actorId: result.user.id,
         actorRole: "user",
         userId: result.user.id,
@@ -86,15 +88,18 @@ export class AuthController {
       if (error instanceof ApiError) {
         reason = error.code;
       }
-      await loginFailed({
-        actorId,
+      await AuditLogEvent({
+        type: "LOGIN_FAILED",
+        severity: "WARN",
+        actorId: actorId,
         actorRole: "system",
+        userId: actorId,
         email: req.body.email,
         reason,
-        ip: req.context.ipAddress ?? "unknown",
+        ip: req.context.ipAddress ?? "unknown",  
         userAgent: req.context.userAgent,
         deviceFingerprint: req.context.deviceId ?? "unknown",
-        requestId: req.requestId ?? "unknown",
+        requestId: req.requestId ?? "unknown", 
         timestamp: Date.now(),
       });
       res.status(401).json({ error: "Invalid credentials" });
@@ -145,17 +150,34 @@ export class AuthController {
 
       this.setAuthCookies(res, result.accessToken, result.refreshToken);
 
+      await AuditLogEvent({
+        type: "REFRESH_TOKEN_SUCCESS",
+        severity: "INFO",
+        actorId: req.user?.sub ?? "unknown",
+        actorRole: "user",
+        userId: req.user?.sub ?? "unknown",
+        email: req.user?.email ?? "unknown",
+        ip: ipAddress ?? "unknown",
+        userAgent: userAgent ?? "unknown",
+        deviceFingerprint: deviceId ?? "unknown",
+        requestId: req.requestId ?? "unknown",
+        timestamp: Date.now(),
+    });
+
       res.status(200).json({ message: "Tokens refreshed successfully" });
     } catch (error) {
       console.error(error);
 
-      // Handle refresh token reuse detection
-      if (error instanceof ApiError && error.code === "AUTH_REFRESH_TOKEN_REUSE") {
+
+      if (error instanceof ApiError) {
+        const severity = error.code === "AUTH_REFRESH_TOKEN_REUSE" ? "CRITICAL" : "WARN";
+        const reason = error.code;
+        
         const refreshToken = req.cookies?.refreshToken;
         if (refreshToken) {
           const tokenHash = hashToken(refreshToken);
 
-          // Find the stored token to get userId
+
           const storedToken = await prisma.refreshToken.findUnique({
             where: { tokenHash },
           });
@@ -165,21 +187,21 @@ export class AuthController {
               where: { id: storedToken.userId },
             });
 
-            await refreshTokenReuseDetected({
-              actorId: storedToken.userId,
-              actorRole: "system",
-              userId: storedToken.userId,
-              email: user?.email ?? "unknown",
-              tokenHash,
-              sessionId: storedToken.sessionId,
-              reason: "REFRESH_TOKEN_REUSE_DETECTED",
-              actionTaken: "REVOKE_SESSION_ONLY",
-              severity: "CRITICAL",
-              ip: req.context.ipAddress ?? "unknown",
-              userAgent: req.context.userAgent ?? "unknown",
-              deviceFingerprint: req.context.deviceId ?? "unknown",
-              requestId: req.requestId ?? "unknown",
-              timestamp: Date.now(),
+              await AuditLogEvent({
+                type: "REFRESH_TOKEN_REUSE_DETECTED",
+                severity: severity,
+                actorId: storedToken.userId,
+                actorRole: "system",
+                userId: storedToken.userId,
+                email: user?.email ?? "unknown",
+                tokenHash,
+                sessionId: storedToken.sessionId,
+                reason,
+                ip: req.context.ipAddress ?? "unknown",
+                userAgent: req.context.userAgent ?? "unknown",
+                deviceFingerprint: req.context.deviceId ?? "unknown",
+                requestId: req.requestId ?? "unknown",
+                timestamp: Date.now(),
             });
           }
         }
